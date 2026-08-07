@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, CheckCheck } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
-import { NEW_MESSAGE_EVENT, pusherChannelName, type PusherMessagePayload } from "@/lib/pusher-shared";
-import { sendMessage } from "@/lib/actions/messages";
+import {
+  NEW_MESSAGE_EVENT,
+  READ_RECEIPT_EVENT,
+  pusherChannelName,
+  type PusherMessagePayload,
+  type ReadReceiptPayload,
+} from "@/lib/pusher-shared";
+import { sendMessage, markChannelRead } from "@/lib/actions/messages";
 import { Avatar } from "@/components/avatar";
 import { CallPanel } from "./call-panel";
 
@@ -52,6 +59,7 @@ export function ChatPane({
   members,
   currentUser,
   otherUser,
+  initialOtherReadAt,
 }: {
   channelId: string;
   title: string;
@@ -60,14 +68,17 @@ export function ChatPane({
   members: Member[];
   currentUser?: CallParticipant;
   otherUser?: CallParticipant;
+  initialOtherReadAt?: string | null;
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [otherReadAt, setOtherReadAt] = useState<string | null>(initialOtherReadAt ?? null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isDirect = Boolean(otherUser);
 
   function appendMessage(message: PusherMessagePayload) {
     setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
@@ -80,15 +91,26 @@ export function ChatPane({
     const channel = pusher.subscribe(pusherChannelName(channelId));
     channel.bind(NEW_MESSAGE_EVENT, appendMessage);
 
+    function handleReadReceipt(receipt: ReadReceiptPayload) {
+      if (receipt.userId === currentUserId) return;
+      setOtherReadAt(receipt.readAt);
+    }
+    channel.bind(READ_RECEIPT_EVENT, handleReadReceipt);
+
     return () => {
       channel.unbind(NEW_MESSAGE_EVENT, appendMessage);
+      channel.unbind(READ_RECEIPT_EVENT, handleReadReceipt);
       pusher.unsubscribe(pusherChannelName(channelId));
     };
-  }, [channelId]);
+  }, [channelId, currentUserId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    void markChannelRead(channelId);
+  }, [channelId, messages.length]);
 
   const mentionMatches =
     mentionQuery === null
@@ -185,11 +207,18 @@ export function ChatPane({
                 <p className="whitespace-pre-wrap break-words text-sm">
                   {renderWithMentions(message.content, members)}
                 </p>
-                <p className="mt-0.5 text-right text-[10px] text-neutral-400">
+                <p className="mt-0.5 flex items-center justify-end gap-1 text-right text-[10px] text-neutral-400">
                   {new Date(message.createdAt).toLocaleTimeString("pt-BR", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
+                  {isOwn && isDirect && (
+                    otherReadAt && new Date(message.createdAt) <= new Date(otherReadAt) ? (
+                      <CheckCheck className="size-3.5 text-violet-600" aria-label="Lida" />
+                    ) : (
+                      <Check className="size-3.5 text-neutral-400" aria-label="Entregue" />
+                    )
+                  )}
                 </p>
               </div>
             </div>

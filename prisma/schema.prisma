@@ -119,10 +119,14 @@ model Channel {
 }
 
 model ChannelMember {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  userId    String
-  channelId String
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  // Last time this member viewed the channel — messages with
+  // createdAt <= lastReadAt are "read" by them (used for DM
+  // delivered/read receipts).
+  lastReadAt DateTime?
+  userId     String
+  channelId  String
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)

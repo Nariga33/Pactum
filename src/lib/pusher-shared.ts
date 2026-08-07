@@ -5,6 +5,7 @@
 
 export const NEW_MESSAGE_EVENT = "new-message";
 export const CALL_SIGNAL_EVENT = "call-signal";
+export const READ_RECEIPT_EVENT = "read-receipt";
 
 export function pusherChannelName(channelId: string): string {
   return `private-channel-${channelId}`;
@@ -27,3 +28,9 @@ export type CallSignal =
   | { kind: "ice-candidate"; callId: string; from: { id: string; name: string; image: string | null }; candidate: string }
   | { kind: "hangup"; callId: string; from: { id: string; name: string; image: string | null } }
   | { kind: "decline"; callId: string; from: { id: string; name: string; image: string | null } };
+
+export type ReadReceiptPayload = {
+  channelId: string;
+  userId: string;
+  readAt: string;
+};

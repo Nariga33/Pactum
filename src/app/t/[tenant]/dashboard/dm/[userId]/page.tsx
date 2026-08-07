@@ -31,7 +31,13 @@ export default async function DirectMessagePage({
     session.user.id,
     userId,
   );
-  const initialMessages = await getInitialMessages(channelId);
+  const [initialMessages, otherChannelMembership] = await Promise.all([
+    getInitialMessages(channelId),
+    prisma.channelMember.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+      select: { lastReadAt: true },
+    }),
+  ]);
 
   return (
     <ChatPane
@@ -47,6 +53,7 @@ export default async function DirectMessagePage({
         image: session.user.image ?? null,
       }}
       otherUser={otherMembership.user}
+      initialOtherReadAt={otherChannelMembership?.lastReadAt?.toISOString() ?? null}
     />
   );
 }

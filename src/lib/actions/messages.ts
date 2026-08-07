@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { publishNewMessage } from "@/lib/pusher-server";
+import { publishNewMessage, publishReadReceipt } from "@/lib/pusher-server";
 import type { PusherMessagePayload } from "@/lib/pusher-shared";
 
 export type SendMessageResult = { error: string } | { message: PusherMessagePayload };
@@ -46,4 +46,23 @@ export async function sendMessage(channelId: string, content: string): Promise<S
   await publishNewMessage(payload);
 
   return { message: payload };
+}
+
+export async function markChannelRead(channelId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user) return;
+
+  const membership = await prisma.channelMember.findUnique({
+    where: { userId_channelId: { userId: session.user.id, channelId } },
+    include: { channel: true },
+  });
+  if (!membership || membership.channel.organizationId !== session.user.organizationId) return;
+
+  const readAt = new Date();
+  await prisma.channelMember.update({
+    where: { id: membership.id },
+    data: { lastReadAt: readAt },
+  });
+
+  await publishReadReceipt({ channelId, userId: session.user.id, readAt: readAt.toISOString() });
 }
