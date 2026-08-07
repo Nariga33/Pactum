@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
+import { tenantPath } from "@/lib/tenant";
 
 export default async function DashboardIndexPage({
   params,
@@ -17,7 +18,7 @@ export default async function DashboardIndexPage({
   });
 
   if (firstMembership) {
-    redirect(`/dashboard/c/${firstMembership.channelId}`);
+    redirect(tenantPath(tenant, `/dashboard/c/${firstMembership.channelId}`));
   }
 
   return (

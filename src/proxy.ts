@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractTenantSlug } from "@/lib/tenant";
 
-// Reverse-proxies tenant subdomains (escritorio.pactum.app) into the
-// /t/[tenant] route group, and stamps the resolved tenant slug on a
-// request header so server components, route handlers and Auth.js can
-// read it without re-parsing the Host header.
+// Reverse-proxies tenant paths ({ROOT}/{slug}/...) into the /t/[tenant]
+// route group, and stamps the resolved tenant slug on a request header
+// so server components and route handlers can read it without
+// re-parsing the pathname. Path-based (not subdomain-based) so the app
+// works on a plain *.vercel.app deployment with no custom domain.
 export function proxy(request: NextRequest) {
-  const host = request.headers.get("host");
-  const tenantSlug = extractTenantSlug(host);
   const { pathname, search } = request.nextUrl;
+  const tenantSlug = extractTenantSlug(pathname);
 
   const requestHeaders = new Headers(request.headers);
 
@@ -19,14 +19,8 @@ export function proxy(request: NextRequest) {
 
   requestHeaders.set("x-tenant-slug", tenantSlug);
 
-  // Let API routes and static assets pass through untouched (path-based
-  // routing only applies to pages); they read the tenant from the header.
-  if (pathname.startsWith("/api") || pathname.startsWith("/_next")) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-
   const rewrittenUrl = request.nextUrl.clone();
-  rewrittenUrl.pathname = `/t/${tenantSlug}${pathname}`;
+  rewrittenUrl.pathname = `/t${pathname}`;
   rewrittenUrl.search = search;
 
   return NextResponse.rewrite(rewrittenUrl, { request: { headers: requestHeaders } });
@@ -34,6 +28,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

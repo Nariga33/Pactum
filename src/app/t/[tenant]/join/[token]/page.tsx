@@ -51,7 +51,7 @@ export default async function JoinPage({
         </div>
 
         <div className="rounded-xl border border-neutral-200 p-6 shadow-sm">
-          <AcceptInviteForm token={token} email={invitation.email} />
+          <AcceptInviteForm tenant={tenant} token={token} email={invitation.email} />
         </div>
       </div>
     </main>

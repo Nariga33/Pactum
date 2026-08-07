@@ -3,19 +3,20 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createChannel, type CreateChannelState } from "@/lib/actions/channels";
+import { tenantPath } from "@/lib/tenant";
 
 const initialState: CreateChannelState = {};
 
-export function CreateChannelForm() {
+export function CreateChannelForm({ tenant }: { tenant: string }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(createChannel, initialState);
   const router = useRouter();
 
   useEffect(() => {
     if (state.channelId) {
-      router.push(`/dashboard/c/${state.channelId}`);
+      router.push(tenantPath(tenant, `/dashboard/c/${state.channelId}`));
     }
-  }, [state.channelId, router]);
+  }, [state.channelId, tenant, router]);
 
   if (!open) {
     return (

@@ -2,18 +2,21 @@
 
 Plataforma operacional e administrativa para escritórios de advocacia —
 cada escritório (tenant) tem um workspace com login dedicado em seu
-próprio subdomínio. Além da comunicação interna estilo Slack, inclui
+próprio endereço (ex: `pactum.app/meu-escritorio`). Além da comunicação
+interna estilo Slack, inclui
 diretório de pessoas, arquivos e um módulo financeiro (DRE, fluxo de
 caixa, inadimplência) restrito a quem tem acesso ao financeiro.
 
 ## Status atual
 
-- Cadastro de escritório (`Organization`) com subdomínio próprio
+- Cadastro de escritório (`Organization`) com endereço próprio
+  (`pactum.app/{slug}`)
 - Usuários (`User`) e vínculo com escritório via `Membership` (papéis
   OWNER/ADMIN/MEMBER)
 - Login isolado por tenant (Auth.js/NextAuth, credenciais + bcrypt)
-- Proxy (`src/proxy.ts`) que resolve o tenant a partir do subdomínio da
-  requisição
+- Proxy (`src/proxy.ts`) que resolve o tenant a partir do primeiro
+  segmento da URL da requisição (multi-tenant por caminho, não por
+  subdomínio — não depende de domínio próprio nem de DNS curinga)
 - Chat estilo Slack: canais do escritório (3 criados automaticamente no
   cadastro — `# geral`, `# societário`, `# contencioso` — e qualquer
   membro pode criar novos, públicos ou privados, pelo botão "+ Criar
@@ -93,20 +96,20 @@ npx prisma migrate dev
 npm run dev
 ```
 
-### 4. Testar o multi-tenant localmente (subdomínios)
+### 4. Testar o multi-tenant localmente (por caminho)
 
-Em desenvolvimento, `NEXT_PUBLIC_ROOT_DOMAIN` está configurado para
-`lvh.me:3000` — o domínio `lvh.me` (e qualquer subdomínio dele, como
-`meu-escritorio.lvh.me`) resolve para `127.0.0.1` sem precisar editar o
-`/etc/hosts`.
+O tenant é resolvido pelo primeiro segmento da URL, então tudo roda em
+`http://localhost:3000` — nenhuma configuração extra de DNS/hosts é
+necessária.
 
-- Domínio raiz (`http://lvh.me:3000`): landing page e cadastro de novo
+- Raiz (`http://localhost:3000`): landing page e cadastro de novo
   escritório (`/signup`)
-- Subdomínio do escritório (ex: `http://meu-escritorio.lvh.me:3000`):
-  login (`/login`) e workspace (`/dashboard`) daquele tenant
+- Workspace do escritório (ex: `http://localhost:3000/meu-escritorio`):
+  login (`/meu-escritorio/login`) e área logada
+  (`/meu-escritorio/dashboard`) daquele tenant
 
 Ao criar um escritório em `/signup`, você é redirecionado
-automaticamente para a tela de login do subdomínio correspondente.
+automaticamente para a tela de login do endereço correspondente.
 
 ## Deploy em produção (Vercel + Neon)
 
@@ -134,21 +137,14 @@ em **Dashboard → Connection Details**, e cole manualmente como
 `DATABASE_URL` no passo 3. A conexão sem `-pooler` não escala bem com
 funções serverless.
 
-### 2. Domínio com subdomínio curinga
+### 2. Conectar o repositório na Vercel
 
-O multi-tenant depende de subdomínio por escritório
-(`escritorio.seudominio.com`), então:
-
-1. Registre/tenha um domínio (ex: `pactum.app`).
-2. Na Vercel, em **Project Settings → Domains**, adicione tanto
-   `pactum.app` quanto `*.pactum.app` (wildcard) apontando para o mesmo
-   projeto. A Vercel mostra os registros DNS (geralmente um `A`/`ALIAS`
-   para o domínio raiz e um `CNAME` para o `*`) — crie-os no seu
-   provedor de DNS.
-3. `NEXT_PUBLIC_ROOT_DOMAIN` (passo 3 abaixo) deve ser exatamente esse
-   domínio, sem porta: `pactum.app`.
-
-### 3. Conectar o repositório na Vercel
+Como o multi-tenant é resolvido pelo caminho da URL (não por
+subdomínio), não é preciso domínio próprio nem DNS curinga — o deploy
+padrão em `SEU_PROJETO.vercel.app` já funciona, com cada escritório em
+`SEU_PROJETO.vercel.app/{slug}`. Se depois você quiser um domínio
+próprio (ex: `pactum.app`), basta apontá-lo em **Project Settings →
+Domains** — não precisa de wildcard (`*.pactum.app`).
 
 1. Em [vercel.com](https://vercel.com), **Add New → Project**, escolha
    o repositório `Nariga33/Pactum` e a branch de deploy.
@@ -165,7 +161,6 @@ O multi-tenant depende de subdomínio por escritório
    | --- | --- |
    | `DATABASE_URL` | já preenchida pela integração Neon (passo 1) — confirme que existe |
    | `AUTH_SECRET` | gere uma nova com `npx auth secret` — **não reuse a de dev** |
-   | `NEXT_PUBLIC_ROOT_DOMAIN` | `pactum.app` (seu domínio, sem porta) |
    | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_SECRET` / `PUSHER_CLUSTER` | opcional — de [dashboard.pusher.com](https://dashboard.pusher.com/) |
    | `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` | mesmos valores acima, expostos ao navegador |
 
@@ -175,8 +170,9 @@ O multi-tenant depende de subdomínio por escritório
 
 ### Depois do primeiro deploy
 
-- Teste em `https://SEU_DOMINIO/signup` (domínio raiz) e confirme que o
-  redirecionamento cai em `https://escritorio-teste.SEU_DOMINIO/login`.
+- Teste em `https://SEU_PROJETO.vercel.app/signup` e confirme que o
+  redirecionamento cai em
+  `https://SEU_PROJETO.vercel.app/escritorio-teste/login`.
 - Fotos de perfil e arquivos anexados hoje são guardados como data URL
   no próprio Postgres (ver notas acima) — funciona em produção, mas vale
   migrar para um bucket de objetos (S3/Supabase Storage) antes de operar
@@ -186,10 +182,10 @@ O multi-tenant depende de subdomínio por escritório
 
 - `prisma/schema.prisma` — modelos de dados (tenant, usuários, canais,
   mensagens, tabelas do Auth.js)
-- `src/proxy.ts` — resolve o subdomínio da requisição e roteia para
-  `src/app/t/[tenant]/...`
-- `src/lib/tenant.ts` — helpers de subdomínio (extração, validação,
-  geração de URLs de tenant)
+- `src/proxy.ts` — resolve o tenant a partir do primeiro segmento da URL
+  da requisição e roteia para `src/app/t/[tenant]/...`
+- `src/lib/tenant.ts` — helpers de tenant por caminho (extração,
+  validação, geração de paths com o slug do tenant)
 - `src/auth.ts` — configuração do Auth.js (login por credenciais,
   escopado por tenant)
 - `src/app/signup` — cadastro de escritório + primeiro usuário (owner)

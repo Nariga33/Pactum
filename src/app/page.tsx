@@ -4,7 +4,7 @@ const FEATURES = [
   {
     title: "Workspace dedicado por escritório",
     description:
-      "Cada escritório tem seu próprio subdomínio e login isolado — sem misturar dados ou conversas entre organizações.",
+      "Cada escritório tem seu próprio endereço e login isolado — sem misturar dados ou conversas entre organizações.",
   },
   {
     title: "Canais e mensagens diretas",

@@ -1,43 +1,40 @@
-// Root domain the app is served from (no protocol, may include a port
-// in development, e.g. "lvh.me:3000"). Tenants are reachable at
-// "{slug}.{ROOT_DOMAIN}".
-export const ROOT_DOMAIN =
-  process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
-
-const RESERVED_SUBDOMAINS = new Set(["www", "app", "api", "admin"]);
+// Tenants are identified by the first path segment of the URL
+// ({ROOT}/{slug}/...) rather than by subdomain — this works on a plain
+// *.vercel.app deployment with no custom domain or wildcard DNS needed.
+const RESERVED_SLUGS = new Set([
+  "www",
+  "app",
+  "api",
+  "admin",
+  "signup",
+  "t",
+  "login",
+  "dashboard",
+  "finance",
+  "join",
+]);
 
 /**
- * Extracts the tenant subdomain from a request Host header, or null if
- * the request targets the root domain (marketing site, signup, etc.)
- * or a reserved/unknown host.
+ * Extracts the tenant slug from a request pathname, or null if the
+ * request targets a non-tenant route (landing page, signup, API, etc.)
+ * or the first segment isn't a valid/registered-looking slug.
  */
-export function extractTenantSlug(host: string | null): string | null {
-  if (!host) return null;
-
-  const hostname = host.split(":")[0];
-  const rootHostname = ROOT_DOMAIN.split(":")[0];
-
-  if (hostname === rootHostname) return null;
-  if (!hostname.endsWith(`.${rootHostname}`)) return null;
-
-  const subdomain = hostname.slice(0, -(`.${rootHostname}`.length));
-  if (!subdomain || subdomain.includes(".") || RESERVED_SUBDOMAINS.has(subdomain)) {
-    return null;
-  }
-
-  return subdomain;
+export function extractTenantSlug(pathname: string): string | null {
+  const first = pathname.split("/")[1] ?? "";
+  return isValidSlug(first) ? first : null;
 }
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const DIACRITIC_PATTERN = new RegExp("[̀-ͯ]", "g");
 
 export function isValidSlug(slug: string): boolean {
-  return SLUG_PATTERN.test(slug) && !RESERVED_SUBDOMAINS.has(slug);
+  return SLUG_PATTERN.test(slug) && !RESERVED_SLUGS.has(slug);
 }
 
 export function slugify(input: string): string {
   return input
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(DIACRITIC_PATTERN, "")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
@@ -45,15 +42,14 @@ export function slugify(input: string): string {
     .slice(0, 63);
 }
 
-const IS_LOCAL_ROOT_DOMAIN =
-  ROOT_DOMAIN.startsWith("localhost") || ROOT_DOMAIN.startsWith("lvh.me");
-
-export function tenantUrl(slug: string, path = "/"): string {
-  const protocol = IS_LOCAL_ROOT_DOMAIN ? "http" : "https";
-  return `${protocol}://${slug}.${ROOT_DOMAIN}${path}`;
-}
-
-export function rootUrl(path = "/"): string {
-  const protocol = IS_LOCAL_ROOT_DOMAIN ? "http" : "https";
-  return `${protocol}://${ROOT_DOMAIN}${path}`;
+/**
+ * Builds the public-facing path for a page inside a tenant's workspace,
+ * e.g. tenantPath("reis-associados", "/dashboard") -> "/reis-associados/dashboard".
+ * Use this for every Link href, redirect() and router.push() that points
+ * inside `/t/[tenant]/...` — a bare "/dashboard" no longer resolves to
+ * the right tenant now that routing isn't subdomain-based.
+ */
+export function tenantPath(slug: string, path = "/"): string {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `/${slug}${suffix === "/" ? "" : suffix}`;
 }

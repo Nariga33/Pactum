@@ -2,7 +2,6 @@
 
 import { useActionState } from "react";
 import { signupAction, type SignupState } from "@/lib/actions/signup";
-import { ROOT_DOMAIN } from "@/lib/tenant";
 
 const initialState: SignupState = {};
 
@@ -30,6 +29,9 @@ export function SignupForm() {
           Endereço do seu workspace
         </label>
         <div className="flex items-center overflow-hidden rounded-md border border-neutral-300 focus-within:border-neutral-900">
+          <span className="whitespace-nowrap bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+            pactum.app/
+          </span>
           <input
             id="slug"
             name="slug"
@@ -37,9 +39,6 @@ export function SignupForm() {
             placeholder="reis-associados"
             className="w-full px-3 py-2 text-sm outline-none"
           />
-          <span className="whitespace-nowrap bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
-            .{ROOT_DOMAIN}
-          </span>
         </div>
         <p className="text-xs text-neutral-500">
           Deixe em branco para gerarmos a partir do nome do escritório.

@@ -1,6 +1,6 @@
 // Prisma schema for Pactum — multi-tenant internal communication SaaS
 // for law firms. Each law firm is an Organization (tenant), reachable
-// on its own subdomain.
+// under its own path segment (pactum.app/{slug}/...).
 
 generator client {
   provider = "prisma-client"
@@ -36,7 +36,7 @@ enum FinanceAccountType {
 model Organization {
   id        String   @id @default(cuid())
   name      String
-  // Subdomain slug, e.g. "meu-escritorio" -> meu-escritorio.pactum.app
+  // Path slug, e.g. "meu-escritorio" -> pactum.app/meu-escritorio
   slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

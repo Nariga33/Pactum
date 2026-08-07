@@ -4,31 +4,38 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { MembershipRole } from "@/generated/prisma/enums";
 
-// Credentials-only auth: each law firm tenant is resolved from the
-// request's subdomain (stamped by middleware as x-tenant-slug), and a
-// user must hold a Membership in that Organization to sign in there.
-// Sessions are JWT-based (required by NextAuth when using Credentials)
-// and, since cookies default to the exact host, are naturally isolated
-// per tenant subdomain.
+// Credentials-only auth: each law firm tenant is identified by a path
+// segment ({ROOT}/{slug}/...), not a subdomain, so the tenant slug can't
+// be inferred from the login POST's own URL (it always goes to
+// /api/auth/callback/credentials). The login form sends it explicitly
+// as a hidden credential field instead. A user must hold a Membership
+// in that Organization to sign in there. Sessions are JWT-based
+// (required by NextAuth when using Credentials); since all tenants
+// share one origin now, only one tenant can be signed into per browser
+// at a time — every page still re-checks session.organizationSlug
+// against the route's tenant, so this is a UX limit, not a security gap.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   trustHost: true,
-  pages: { signIn: "/login" },
   providers: [
     Credentials({
       credentials: {
         email: { label: "E-mail", type: "email" },
         password: { label: "Senha", type: "password" },
+        tenant: { label: "Tenant", type: "text" },
       },
-      authorize: async (credentials, request) => {
+      authorize: async (credentials) => {
         const email = credentials?.email;
         const password = credentials?.password;
-        if (typeof email !== "string" || typeof password !== "string") {
+        const tenantSlug = credentials?.tenant;
+        if (
+          typeof email !== "string" ||
+          typeof password !== "string" ||
+          typeof tenantSlug !== "string" ||
+          !tenantSlug
+        ) {
           return null;
         }
-
-        const tenantSlug = request.headers.get("x-tenant-slug");
-        if (!tenantSlug) return null;
 
         const organization = await prisma.organization.findUnique({
           where: { slug: tenantSlug },

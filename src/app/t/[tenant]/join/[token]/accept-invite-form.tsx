@@ -4,8 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { acceptInvitation } from "@/lib/actions/invitations";
+import { tenantPath } from "@/lib/tenant";
 
-export function AcceptInviteForm({ token, email }: { token: string; email: string }) {
+export function AcceptInviteForm({
+  tenant,
+  token,
+  email,
+}: {
+  tenant: string;
+  token: string;
+  email: string;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,15 +35,15 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
       return;
     }
 
-    const signInResult = await signIn("credentials", { email, password, redirect: false });
+    const signInResult = await signIn("credentials", { email, password, tenant, redirect: false });
     setPending(false);
 
     if (signInResult?.error) {
-      router.push("/login");
+      router.push(tenantPath(tenant, "/login"));
       return;
     }
 
-    router.push("/dashboard");
+    router.push(tenantPath(tenant, "/dashboard"));
     router.refresh();
   }
 

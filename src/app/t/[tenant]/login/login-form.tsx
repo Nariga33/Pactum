@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { tenantPath } from "@/lib/tenant";
 
-export function LoginForm() {
+export function LoginForm({ tenant }: { tenant: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +19,7 @@ export function LoginForm() {
     const result = await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      tenant,
       redirect: false,
     });
 
@@ -28,7 +30,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(tenantPath(tenant, "/dashboard"));
     router.refresh();
   }
 

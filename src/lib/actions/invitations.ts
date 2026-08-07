@@ -3,12 +3,23 @@
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { tenantUrl } from "@/lib/tenant";
+import { tenantPath } from "@/lib/tenant";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ADMIN_ROLES = new Set(["OWNER", "ADMIN"]);
+
+// Invite links are copied and shared outside the app (e-mail, WhatsApp),
+// so they need to be absolute. Built from the actual request host rather
+// than an env var — works unchanged on any *.vercel.app preview/prod URL.
+async function absoluteTenantUrl(slug: string, path: string): Promise<string> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+  return `${protocol}://${host}${tenantPath(slug, path)}`;
+}
 
 export type CreateInvitationState = {
   error?: string;
@@ -50,7 +61,7 @@ export async function createInvitation(
     where: { organizationId: session.user.organizationId, email, status: "PENDING" },
   });
   if (existingInvite) {
-    return { inviteUrl: tenantUrl(session.user.organizationSlug, `/join/${existingInvite.token}`) };
+    return { inviteUrl: await absoluteTenantUrl(session.user.organizationSlug, `/join/${existingInvite.token}`) };
   }
 
   const token = randomBytes(24).toString("hex");
@@ -66,7 +77,7 @@ export async function createInvitation(
 
   revalidatePath(`/t/${session.user.organizationSlug}/dashboard/directory`);
 
-  return { inviteUrl: tenantUrl(session.user.organizationSlug, `/join/${token}`) };
+  return { inviteUrl: await absoluteTenantUrl(session.user.organizationSlug, `/join/${token}`) };
 }
 
 export async function revokeInvitation(invitationId: string): Promise<void> {

@@ -3,7 +3,7 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isValidSlug, slugify, tenantUrl } from "@/lib/tenant";
+import { isValidSlug, slugify, tenantPath } from "@/lib/tenant";
 
 export type SignupState = {
   error?: string;
@@ -33,7 +33,7 @@ export async function signupAction(
   const slug = slugify(slugInput || firmName);
   if (!isValidSlug(slug)) {
     return {
-      error: "Escolha um subdomínio válido (letras minúsculas, números e hífens).",
+      error: "Escolha um endereço válido (letras minúsculas, números e hífens).",
       values,
     };
   }
@@ -56,7 +56,7 @@ export async function signupAction(
   ]);
 
   if (existingOrg) {
-    return { error: "Esse subdomínio já está em uso. Escolha outro.", values };
+    return { error: "Esse endereço já está em uso. Escolha outro.", values };
   }
   if (existingUser) {
     return { error: "Já existe uma conta com esse e-mail.", values };
@@ -88,5 +88,5 @@ export async function signupAction(
     }
   });
 
-  redirect(tenantUrl(slug, "/login"));
+  redirect(tenantPath(slug, "/login"));
 }

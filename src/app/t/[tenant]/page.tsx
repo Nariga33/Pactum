@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { tenantPath } from "@/lib/tenant";
 
 export default async function TenantRootPage({
   params,
@@ -10,8 +11,8 @@ export default async function TenantRootPage({
   const session = await auth();
 
   if (session?.user?.organizationSlug === tenant) {
-    redirect(`/dashboard`);
+    redirect(tenantPath(tenant, "/dashboard"));
   }
 
-  redirect(`/login`);
+  redirect(tenantPath(tenant, "/login"));
 }

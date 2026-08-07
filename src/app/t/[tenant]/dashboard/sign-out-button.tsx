@@ -1,11 +1,12 @@
 import { signOut } from "@/auth";
+import { tenantPath } from "@/lib/tenant";
 
-export function SignOutButton() {
+export function SignOutButton({ tenant }: { tenant: string }) {
   return (
     <form
       action={async () => {
         "use server";
-        await signOut({ redirectTo: "/login" });
+        await signOut({ redirectTo: tenantPath(tenant, "/login") });
       }}
     >
       <button

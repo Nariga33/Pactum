@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { rootUrl } from "@/lib/tenant";
+import { tenantPath } from "@/lib/tenant";
 import { LoginForm } from "./login-form";
 
 export async function generateMetadata({
@@ -27,7 +27,7 @@ export default async function TenantLoginPage({
 
   const session = await auth();
   if (session?.user?.organizationSlug === tenant) {
-    redirect(`/dashboard`);
+    redirect(tenantPath(tenant, "/dashboard"));
   }
 
   return (
@@ -42,12 +42,12 @@ export default async function TenantLoginPage({
         </div>
 
         <div className="rounded-xl border border-neutral-200 p-6 shadow-sm">
-          <LoginForm />
+          <LoginForm tenant={tenant} />
         </div>
 
         <p className="mt-6 text-center text-sm text-neutral-500">
           Ainda não tem um workspace?{" "}
-          <a href={rootUrl("/signup")} className="text-neutral-700 underline">
+          <a href="/signup" className="text-neutral-700 underline">
             Criar um novo
           </a>
         </p>

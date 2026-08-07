@@ -3,6 +3,7 @@ import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { requireTenantSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { tenantPath } from "@/lib/tenant";
 
 async function checkFinanceAccess(
   userId: string,
@@ -23,7 +24,7 @@ async function checkFinanceAccess(
 export async function requireFinanceAccess(tenant: string): Promise<Session> {
   const session = await requireTenantSession(tenant);
   const allowed = await checkFinanceAccess(session.user.id, session.user.organizationId, session.user.role);
-  if (!allowed) redirect("/dashboard");
+  if (!allowed) redirect(tenantPath(tenant, "/dashboard"));
   return session;
 }
 

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { MemberRowActions } from "./member-row-actions";
+import { tenantPath } from "@/lib/tenant";
 import type { MembershipRole } from "@/generated/prisma/enums";
 
 export type DirectoryMember = {
@@ -21,7 +22,7 @@ export type DirectoryMember = {
   canRemove: boolean;
 };
 
-export function DirectoryGrid({ members }: { members: DirectoryMember[] }) {
+export function DirectoryGrid({ tenant, members }: { tenant: string; members: DirectoryMember[] }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -77,7 +78,7 @@ export function DirectoryGrid({ members }: { members: DirectoryMember[] }) {
               />
               {!member.isSelf && (
                 <Link
-                  href={`/dashboard/dm/${member.userId}`}
+                  href={tenantPath(tenant, `/dashboard/dm/${member.userId}`)}
                   className="text-xs text-neutral-600 underline hover:text-neutral-900"
                 >
                   Mensagem

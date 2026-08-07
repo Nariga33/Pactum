@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { tenantPath } from "@/lib/tenant";
 
 // Ensures the current session belongs to the tenant being requested,
 // redirecting to that tenant's login page otherwise. Used by every page
@@ -7,7 +8,7 @@ import { auth } from "@/auth";
 export async function requireTenantSession(tenant: string) {
   const session = await auth();
   if (!session?.user || session.user.organizationSlug !== tenant) {
-    redirect("/login");
+    redirect(tenantPath(tenant, "/login"));
   }
   return session;
 }

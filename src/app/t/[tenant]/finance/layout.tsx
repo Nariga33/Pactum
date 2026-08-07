@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LayoutDashboard, Receipt, BookOpen, ArrowLeft } from "lucide-react";
 import { requireFinanceAccess } from "@/lib/finance";
+import { tenantPath } from "@/lib/tenant";
 
 export default async function FinanceLayout({
   children,
@@ -22,21 +23,21 @@ export default async function FinanceLayout({
 
         <nav className="flex-1 space-y-0.5 px-2">
           <Link
-            href="/finance"
+            href={tenantPath(tenant, "/finance")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
             <LayoutDashboard className="size-4 text-neutral-500" />
             Visão geral (DRE)
           </Link>
           <Link
-            href="/finance/entries"
+            href={tenantPath(tenant, "/finance/entries")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
             <Receipt className="size-4 text-neutral-500" />
             Lançamentos
           </Link>
           <Link
-            href="/finance/accounts"
+            href={tenantPath(tenant, "/finance/accounts")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
             <BookOpen className="size-4 text-neutral-500" />
@@ -46,7 +47,7 @@ export default async function FinanceLayout({
 
         <div className="border-t border-[var(--color-sidebar-border)] px-2 py-2">
           <Link
-            href="/dashboard"
+            href={tenantPath(tenant, "/dashboard")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-400 hover:bg-[var(--color-sidebar-hover)]"
           >
             <ArrowLeft className="size-4" />

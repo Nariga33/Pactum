@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Hash, Users, Folder, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
+import { tenantPath } from "@/lib/tenant";
 import { Avatar } from "@/components/avatar";
 import { SignOutButton } from "./sign-out-button";
 import { CreateChannelForm } from "./_components/create-channel-form";
@@ -65,7 +66,7 @@ export default async function DashboardLayout({
               {channelMemberships.map(({ channel }) => (
                 <li key={channel.id}>
                   <Link
-                    href={`/dashboard/c/${channel.id}`}
+                    href={tenantPath(tenant, `/dashboard/c/${channel.id}`)}
                     className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
                   >
                     <Hash className="size-3.5 shrink-0 text-neutral-500" />
@@ -74,7 +75,7 @@ export default async function DashboardLayout({
                 </li>
               ))}
             </ul>
-            <CreateChannelForm />
+            <CreateChannelForm tenant={tenant} />
           </div>
 
           <div>
@@ -90,7 +91,7 @@ export default async function DashboardLayout({
               {teammates.map(({ user }) => (
                 <li key={user.id}>
                   <Link
-                    href={`/dashboard/dm/${user.id}`}
+                    href={tenantPath(tenant, `/dashboard/dm/${user.id}`)}
                     className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
                   >
                     <Avatar name={user.name} image={user.image} size="sm" />
@@ -104,14 +105,14 @@ export default async function DashboardLayout({
 
         <div className="space-y-0.5 border-t border-[var(--color-sidebar-border)] px-2 py-2">
           <Link
-            href="/dashboard/directory"
+            href={tenantPath(tenant, "/dashboard/directory")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
             <Users className="size-4 text-neutral-500" />
             Diretório
           </Link>
           <Link
-            href="/dashboard/files"
+            href={tenantPath(tenant, "/dashboard/files")}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
             <Folder className="size-4 text-neutral-500" />
@@ -119,7 +120,7 @@ export default async function DashboardLayout({
           </Link>
           {hasFinanceAccess && (
             <Link
-              href="/finance"
+              href={tenantPath(tenant, "/finance")}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
             >
               <Wallet className="size-4 text-neutral-500" />
@@ -129,14 +130,14 @@ export default async function DashboardLayout({
         </div>
 
         <div className="flex items-center justify-between border-t border-[var(--color-sidebar-border)] px-4 py-3">
-          <Link href="/dashboard/profile" className="flex min-w-0 items-center gap-2 hover:opacity-80">
+          <Link href={tenantPath(tenant, "/dashboard/profile")} className="flex min-w-0 items-center gap-2 hover:opacity-80">
             <Avatar name={currentUser.name} image={currentUser.image} size="sm" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{currentUser.name}</p>
               <p className="truncate text-xs text-neutral-500">{currentUser.email}</p>
             </div>
           </Link>
-          <SignOutButton />
+          <SignOutButton tenant={tenant} />
         </div>
       </aside>
 

@@ -65,7 +65,7 @@ export default async function DirectoryPage({
       )}
 
       <div className="mt-8">
-        <DirectoryGrid members={members} />
+        <DirectoryGrid tenant={tenant} members={members} />
       </div>
 
       {isAdmin && pendingInvites.length > 0 && (
