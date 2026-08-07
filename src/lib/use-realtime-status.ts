@@ -28,6 +28,8 @@ export function useRealtimeStatus(channelId: string): string | null {
     function handleStateChange(states: PusherStateChange) {
       if (states.current === "failed" || states.current === "unavailable") {
         setError(`Conexão em tempo real indisponível (estado: ${states.current}).`);
+      } else if (states.current === "connected") {
+        setError(null);
       }
     }
 
@@ -46,7 +48,24 @@ export function useRealtimeStatus(channelId: string): string | null {
     channel.bind("pusher:subscription_error", handleSubscriptionError);
     channel.bind("pusher:subscription_succeeded", handleSubscriptionSucceeded);
 
+    // Backstop: some failure modes (e.g. the WebSocket handshake never
+    // completing at all) never fire "error" or a "failed"/"unavailable"
+    // state_change — the connection just sits at "connecting" forever,
+    // and the auth request to /api/pusher/auth for the private channel
+    // never even happens (it needs a socket_id from an established
+    // connection first). Without this, that failure mode is completely
+    // silent. 10s is generous — Pusher normally connects in under 1s.
+    const timeout = setTimeout(() => {
+      if (pusher.connection.state !== "connected") {
+        setError(
+          `Não foi possível conectar ao tempo real (${pusher.connection.state} após 10s). ` +
+            `Provável bloqueio de WebSocket na rede atual (firewall/proxy corporativo) — tente outra rede.`,
+        );
+      }
+    }, 10000);
+
     return () => {
+      clearTimeout(timeout);
       pusher.connection.unbind("error", handleConnectionError);
       pusher.connection.unbind("state_change", handleStateChange);
       channel.unbind("pusher:subscription_error", handleSubscriptionError);
