@@ -23,12 +23,20 @@ export default function LandingPage() {
     <main className="flex flex-1 flex-col">
       <header className="flex items-center justify-between px-6 py-5 sm:px-10">
         <span className="text-lg font-semibold tracking-tight">Pactum</span>
-        <Link
-          href="/signup"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
-        >
-          Criar workspace
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="rounded-md px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
+          >
+            Entrar
+          </Link>
+          <Link
+            href="/signup"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+          >
+            Criar workspace
+          </Link>
+        </div>
       </header>
 
       <section className="mx-auto flex max-w-3xl flex-1 flex-col items-center px-6 py-16 text-center sm:py-24">
