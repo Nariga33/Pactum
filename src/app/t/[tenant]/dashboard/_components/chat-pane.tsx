@@ -12,6 +12,7 @@ import {
 } from "@/lib/pusher-shared";
 import { sendMessage, markChannelRead } from "@/lib/actions/messages";
 import { useRealtimeStatus } from "@/lib/use-realtime-status";
+import { playMessageChime, requestNotificationPermission, showMessageNotification } from "@/lib/browser-notify";
 import { Avatar } from "@/components/avatar";
 import { CallPanel } from "./call-panel";
 
@@ -91,7 +92,18 @@ export function ChatPane({
     if (!pusher) return;
 
     const channel = pusher.subscribe(pusherChannelName(channelId));
-    channel.bind(NEW_MESSAGE_EVENT, appendMessage);
+
+    function handleNewMessage(message: PusherMessagePayload) {
+      appendMessage(message);
+      // Chime + OS notification only for messages from someone else,
+      // and only when this tab isn't the one being looked at — avoids
+      // pinging for your own sent messages or while already reading.
+      if (message.user.id !== currentUserId && !document.hasFocus()) {
+        playMessageChime();
+        showMessageNotification(message.user.name, () => window.focus());
+      }
+    }
+    channel.bind(NEW_MESSAGE_EVENT, handleNewMessage);
 
     function handleReadReceipt(receipt: ReadReceiptPayload) {
       if (receipt.userId === currentUserId) return;
@@ -100,7 +112,7 @@ export function ChatPane({
     channel.bind(READ_RECEIPT_EVENT, handleReadReceipt);
 
     return () => {
-      channel.unbind(NEW_MESSAGE_EVENT, appendMessage);
+      channel.unbind(NEW_MESSAGE_EVENT, handleNewMessage);
       channel.unbind(READ_RECEIPT_EVENT, handleReadReceipt);
       pusher.unsubscribe(pusherChannelName(channelId));
     };
@@ -164,6 +176,10 @@ export function ChatPane({
     event.preventDefault();
     const content = draft.trim();
     if (!content || pending) return;
+
+    // A real user gesture — the only context browsers allow a
+    // notification permission prompt to appear in at all.
+    requestNotificationPermission();
 
     setPending(true);
     setError(null);

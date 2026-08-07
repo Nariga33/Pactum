@@ -23,6 +23,12 @@ export async function sendCallSignal(channelId: string, signal: CallSignal): Pro
   if (!membership || membership.channel.organizationId !== session.user.organizationId) {
     return { error: "Você não faz parte desta conversa." };
   }
+  // Calling UI only ever renders for DIRECT (1:1) channels — reject
+  // signals aimed at a group channel even if sent directly to this
+  // action, since nobody there would have a CallPanel listening.
+  if (membership.channel.type !== "DIRECT") {
+    return { error: "Chamada só é suportada em mensagens diretas." };
+  }
 
   await publishCallSignal(channelId, signal);
   return {};

@@ -22,28 +22,66 @@ export default async function DashboardLayout({
   const organization = await prisma.organization.findUnique({ where: { slug: tenant } });
   if (!organization) notFound();
 
-  const [channelMemberships, teammates, currentUser, currentMembership] = await Promise.all([
-    prisma.channelMember.findMany({
-      where: { userId: session.user.id, channel: { organizationId: organization.id, type: "CHANNEL" } },
-      include: { channel: true },
-      orderBy: { channel: { createdAt: "asc" } },
-    }),
-    prisma.membership.findMany({
-      where: { organizationId: organization.id, userId: { not: session.user.id } },
-      include: { user: { select: { id: true, name: true, email: true, image: true } } },
-      orderBy: { user: { name: "asc" } },
-    }),
-    prisma.user.findUniqueOrThrow({
-      where: { id: session.user.id },
-      select: { name: true, email: true, image: true },
-    }),
-    prisma.membership.findUnique({
-      where: { userId_organizationId: { userId: session.user.id, organizationId: organization.id } },
-      select: { financeAccess: true },
-    }),
-  ]);
+  const [channelMemberships, teammates, currentUser, currentMembership, directChannelMemberships] =
+    await Promise.all([
+      prisma.channelMember.findMany({
+        where: { userId: session.user.id, channel: { organizationId: organization.id, type: "CHANNEL" } },
+        include: {
+          channel: {
+            include: { messages: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } } },
+          },
+        },
+        orderBy: { channel: { createdAt: "asc" } },
+      }),
+      prisma.membership.findMany({
+        where: { organizationId: organization.id, userId: { not: session.user.id } },
+        include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+      prisma.user.findUniqueOrThrow({
+        where: { id: session.user.id },
+        select: { name: true, email: true, image: true },
+      }),
+      prisma.membership.findUnique({
+        where: { userId_organizationId: { userId: session.user.id, organizationId: organization.id } },
+        select: { financeAccess: true },
+      }),
+      // Unread state for DMs: for each of the current user's DIRECT
+      // channels, who the other participant is, this user's own
+      // lastReadAt, and the most recent message's timestamp.
+      prisma.channelMember.findMany({
+        where: { userId: session.user.id, channel: { organizationId: organization.id, type: "DIRECT" } },
+        select: {
+          lastReadAt: true,
+          channel: {
+            select: {
+              members: { where: { userId: { not: session.user.id } }, select: { userId: true } },
+              messages: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+            },
+          },
+        },
+      }),
+    ]);
 
   const hasFinanceAccess = session.user.role === "OWNER" || currentMembership?.financeAccess === true;
+
+  function isUnread(lastReadAt: Date | null, lastMessageAt: Date | undefined): boolean {
+    if (!lastMessageAt) return false;
+    return !lastReadAt || lastMessageAt > lastReadAt;
+  }
+
+  const unreadChannelIds = new Set(
+    channelMemberships
+      .filter((m) => isUnread(m.lastReadAt, m.channel.messages[0]?.createdAt))
+      .map((m) => m.channel.id),
+  );
+
+  const unreadDmUserIds = new Set(
+    directChannelMemberships
+      .filter((m) => isUnread(m.lastReadAt, m.channel.messages[0]?.createdAt))
+      .map((m) => m.channel.members[0]?.userId)
+      .filter((id): id is string => Boolean(id)),
+  );
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
@@ -66,17 +104,23 @@ export default async function DashboardLayout({
               Canais
             </p>
             <ul className="mt-1 space-y-0.5">
-              {channelMemberships.map(({ channel }) => (
-                <li key={channel.id}>
-                  <Link
-                    href={tenantPath(tenant, `/dashboard/c/${channel.id}`)}
-                    className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
-                  >
-                    <Hash className="size-3.5 shrink-0 text-neutral-500" />
-                    <span className="truncate">{channel.name}</span>
-                  </Link>
-                </li>
-              ))}
+              {channelMemberships.map(({ channel }) => {
+                const unread = unreadChannelIds.has(channel.id);
+                return (
+                  <li key={channel.id}>
+                    <Link
+                      href={tenantPath(tenant, `/dashboard/c/${channel.id}`)}
+                      className={`flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-sidebar-hover)] ${
+                        unread ? "font-semibold text-white" : "text-neutral-300"
+                      }`}
+                    >
+                      <Hash className="size-3.5 shrink-0 text-neutral-500" />
+                      <span className="truncate">{channel.name}</span>
+                      {unread && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-violet-400" />}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
             <CreateChannelForm tenant={tenant} />
           </div>
@@ -91,17 +135,23 @@ export default async function DashboardLayout({
                   Ninguém mais no workspace ainda
                 </li>
               )}
-              {teammates.map(({ user }) => (
-                <li key={user.id}>
-                  <Link
-                    href={tenantPath(tenant, `/dashboard/dm/${user.id}`)}
-                    className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
-                  >
-                    <Avatar name={user.name} image={user.image} size="sm" />
-                    <span className="truncate">{user.name}</span>
-                  </Link>
-                </li>
-              ))}
+              {teammates.map(({ user }) => {
+                const unread = unreadDmUserIds.has(user.id);
+                return (
+                  <li key={user.id}>
+                    <Link
+                      href={tenantPath(tenant, `/dashboard/dm/${user.id}`)}
+                      className={`flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-sidebar-hover)] ${
+                        unread ? "font-semibold text-white" : "text-neutral-300"
+                      }`}
+                    >
+                      <Avatar name={user.name} image={user.image} size="sm" />
+                      <span className="truncate">{user.name}</span>
+                      {unread && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-violet-400" />}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </nav>

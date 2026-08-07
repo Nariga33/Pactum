@@ -5,6 +5,7 @@ import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, ScreenShare, ScreenShare
 import { getPusherClient } from "@/lib/pusher-client";
 import { CALL_SIGNAL_EVENT, pusherChannelName, type CallSignal } from "@/lib/pusher-shared";
 import { sendCallSignal } from "@/lib/actions/calls";
+import { requestNotificationPermission, showCallNotification } from "@/lib/browser-notify";
 import { Avatar } from "@/components/avatar";
 
 type Person = { id: string; name: string; image: string | null };
@@ -56,6 +57,12 @@ export function CallPanel({
     if (ringToneRef.current) return;
     const AudioContextCtor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AudioContextCtor();
+    // Browsers can start an AudioContext "suspended" under autoplay
+    // policy until a user gesture happens on the page. Resuming here is
+    // a no-op if it's already running, and covers the case where the
+    // gesture already happened earlier in the session (opening the app,
+    // clicking around) but the context was created fresh for this call.
+    if (ctx.state === "suspended") void ctx.resume();
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.connect(ctx.destination);
@@ -159,6 +166,7 @@ export function CallPanel({
   }
 
   async function startCall(video: boolean) {
+    requestNotificationPermission();
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
@@ -303,6 +311,9 @@ export function CallPanel({
         setIsVideo(signal.video);
         setCallState("incoming");
         startRingTone();
+        if (!document.hasFocus()) {
+          showCallNotification(otherUser.name, signal.video, () => window.focus());
+        }
         return;
       }
 
