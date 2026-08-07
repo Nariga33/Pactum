@@ -34,11 +34,55 @@ export function CallPanel({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingCandidatesRef = useRef<string[]>([]);
+  // Always mounted (see render below) so these refs are attached the
+  // instant a stream is ready, regardless of callState re-render timing
+  // — ontrack/getUserMedia can resolve before "connected" is committed.
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const incomingOfferRef = useRef<{ sdp: string; video: boolean } | null>(null);
+  const ringToneRef = useRef<{ ctx: AudioContext; stop: () => void } | null>(null);
+  const disconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function startRingTone() {
+    if (ringToneRef.current) return;
+    const AudioContextCtor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioContextCtor();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+    const oscillator = ctx.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    oscillator.connect(gain);
+    oscillator.start();
+
+    let on = false;
+    const interval = setInterval(() => {
+      on = !on;
+      gain.gain.setTargetAtTime(on ? 0.15 : 0, ctx.currentTime, 0.02);
+    }, 600);
+
+    ringToneRef.current = {
+      ctx,
+      stop: () => {
+        clearInterval(interval);
+        oscillator.stop();
+        void ctx.close();
+      },
+    };
+  }
+
+  function stopRingTone() {
+    ringToneRef.current?.stop();
+    ringToneRef.current = null;
+  }
 
   function cleanup() {
+    stopRingTone();
+    if (disconnectTimeoutRef.current) {
+      clearTimeout(disconnectTimeoutRef.current);
+      disconnectTimeoutRef.current = null;
+    }
     pcRef.current?.close();
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -73,9 +117,29 @@ export function CallPanel({
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
     };
     pc.onconnectionstatechange = () => {
+      // "disconnected" also fires on brief network blips that recover on
+      // their own — debounce before treating it as the call actually
+      // having ended. This is a backstop for when the other side's
+      // hangup/decline signal doesn't arrive (missed Pusher event,
+      // tab closed without cleanup) — ICE will notice they're gone
+      // even without a signal.
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        if (disconnectTimeoutRef.current) clearTimeout(disconnectTimeoutRef.current);
         setError("A chamada caiu. Verifique sua conexão.");
         cleanup();
+        return;
+      }
+      if (pc.connectionState === "disconnected") {
+        if (disconnectTimeoutRef.current) clearTimeout(disconnectTimeoutRef.current);
+        disconnectTimeoutRef.current = setTimeout(() => {
+          setError("A chamada caiu. Verifique sua conexão.");
+          cleanup();
+        }, 6000);
+        return;
+      }
+      if (pc.connectionState === "connected" && disconnectTimeoutRef.current) {
+        clearTimeout(disconnectTimeoutRef.current);
+        disconnectTimeoutRef.current = null;
       }
     };
     pcRef.current = pc;
@@ -112,6 +176,7 @@ export function CallPanel({
     const callId = callIdRef.current;
     if (!offerData || !callId) return;
 
+    stopRingTone();
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: offerData.video });
@@ -183,6 +248,7 @@ export function CallPanel({
         incomingOfferRef.current = { sdp: signal.sdp, video: signal.video };
         setIsVideo(signal.video);
         setCallState("incoming");
+        startRingTone();
         return;
       }
 
@@ -225,6 +291,8 @@ export function CallPanel({
 
   useEffect(() => {
     return () => {
+      stopRingTone();
+      if (disconnectTimeoutRef.current) clearTimeout(disconnectTimeoutRef.current);
       pcRef.current?.close();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
@@ -232,8 +300,36 @@ export function CallPanel({
 
   if (!getPusherClient()) return null;
 
+  const showVideoTiles = callState === "connected" && isVideo;
+
   return (
     <>
+      {/* Always mounted (from component mount, not gated by callState) so
+          these refs are already attached whenever getUserMedia resolves or
+          ontrack fires — both can happen before a state-transition render
+          commits, and an unmounted ref silently drops the stream. */}
+      <video
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        className={
+          showVideoTiles
+            ? "fixed left-1/2 top-1/2 z-[60] max-h-[70vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-lg bg-black object-contain"
+            : "pointer-events-none absolute -left-[9999px] top-0 h-px w-px"
+        }
+      />
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        className={
+          showVideoTiles
+            ? "fixed bottom-8 right-8 z-[60] h-32 w-24 rounded-md border border-white/20 bg-black object-cover"
+            : "pointer-events-none absolute -left-[9999px] top-0 h-px w-px"
+        }
+      />
+
       {callState === "idle" && (
         <div className="flex items-center gap-1">
           <button
@@ -300,33 +396,13 @@ export function CallPanel({
 
           {callState === "connected" && (
             <>
-              <div className="relative flex w-full max-w-3xl flex-1 items-center justify-center">
-                {isVideo ? (
-                  <>
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className="max-h-[70vh] w-full rounded-lg bg-black object-contain"
-                    />
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="absolute bottom-4 right-4 h-32 w-24 rounded-md border border-white/20 bg-black object-cover"
-                    />
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <Avatar name={otherUser.name} image={otherUser.image} size="lg" />
-                    <p className="text-lg font-medium">{otherUser.name}</p>
-                    <p className="text-sm text-neutral-400">Em chamada de áudio</p>
-                    <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
-                    <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />
-                  </div>
-                )}
-              </div>
+              {!isVideo && (
+                <div className="flex flex-col items-center gap-3">
+                  <Avatar name={otherUser.name} image={otherUser.image} size="lg" />
+                  <p className="text-lg font-medium">{otherUser.name}</p>
+                  <p className="text-sm text-neutral-400">Em chamada de áudio</p>
+                </div>
+              )}
 
               <div className="flex gap-4">
                 <button
