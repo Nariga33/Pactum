@@ -7,6 +7,7 @@ import { tenantPath } from "@/lib/tenant";
 import { Avatar } from "@/components/avatar";
 import { SignOutButton } from "./sign-out-button";
 import { CreateChannelForm } from "./_components/create-channel-form";
+import { SearchBar } from "./_components/search-bar";
 
 export default async function DashboardLayout({
   children,
@@ -56,6 +57,8 @@ export default async function DashboardLayout({
             <p className="truncate text-sm font-semibold">{organization.name}</p>
           </div>
         </div>
+
+        <SearchBar tenant={tenant} />
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-2 py-2">
           <div>
