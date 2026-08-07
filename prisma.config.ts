@@ -3,12 +3,20 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// `prisma migrate deploy` needs a *direct* (non-pooled) connection: its
+// advisory lock is session-scoped, and PgBouncer's transaction-pooling
+// mode (which Neon's pooled DATABASE_URL, the "-pooler" hostname, runs
+// through) doesn't preserve session state across statements, causing a
+// P1002 timeout waiting on pg_advisory_lock. Neon's Vercel integration
+// injects DATABASE_URL_UNPOOLED alongside the pooled DATABASE_URL
+// specifically for this. The app's runtime queries (src/lib/prisma.ts)
+// still use the pooled DATABASE_URL — only the CLI/migrations use this.
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"],
   },
 });

@@ -159,7 +159,8 @@ Domains** — não precisa de wildcard (`*.pactum.app`).
 
    | Variável | Valor |
    | --- | --- |
-   | `DATABASE_URL` | já preenchida pela integração Neon (passo 1) — confirme que existe |
+   | `DATABASE_URL` | já preenchida pela integração Neon (passo 1) — confirme que existe (é a string **pooled**, com `-pooler`, usada em runtime) |
+   | `DATABASE_URL_UNPOOLED` | também preenchida pela integração Neon — confirme que existe. É a conexão **direta** (sem `-pooler`), usada só por `prisma migrate deploy`: o advisory lock da migration não funciona através do pooler (PgBouncer em modo transaction), e sem essa variável o build falha com `P1002` ("Timed out trying to acquire a postgres advisory lock") |
    | `AUTH_SECRET` | gere uma nova com `npx auth secret` — **não reuse a de dev** |
    | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_SECRET` / `PUSHER_CLUSTER` | opcional — de [dashboard.pusher.com](https://dashboard.pusher.com/) |
    | `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` | mesmos valores acima, expostos ao navegador |
