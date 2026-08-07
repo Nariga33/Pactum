@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff } from "lucide-react";
+import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, ScreenShare, ScreenShareOff } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
 import { CALL_SIGNAL_EVENT, pusherChannelName, type CallSignal } from "@/lib/pusher-shared";
 import { sendCallSignal } from "@/lib/actions/calls";
@@ -14,6 +14,12 @@ type CallState = "idle" | "outgoing" | "incoming" | "connected";
 // networks but can fail to connect across some restrictive corporate
 // NATs. A TURN relay would need a paid/self-hosted service.
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
 
 export function CallPanel({
   channelId,
@@ -28,6 +34,8 @@ export function CallPanel({
   const [isVideo, setIsVideo] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const callIdRef = useRef<string | null>(null);
@@ -42,6 +50,7 @@ export function CallPanel({
   const incomingOfferRef = useRef<{ sdp: string; video: boolean } | null>(null);
   const ringToneRef = useRef<{ ctx: AudioContext; stop: () => void } | null>(null);
   const disconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
 
   function startRingTone() {
     if (ringToneRef.current) return;
@@ -87,6 +96,8 @@ export function CallPanel({
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    screenStreamRef.current = null;
     pendingCandidatesRef.current = [];
     incomingOfferRef.current = null;
     callIdRef.current = null;
@@ -94,6 +105,7 @@ export function CallPanel({
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     setMuted(false);
     setCameraOff(false);
+    setIsScreenSharing(false);
     setCallState("idle");
   }
 
@@ -229,6 +241,48 @@ export function CallPanel({
     setCameraOff(!track.enabled);
   }
 
+  // Screen share replaces the outgoing video track on the existing
+  // sender (no renegotiation needed, since a video m-line already
+  // exists for video calls) — only offered for video calls for that
+  // reason. stopScreenShare/startScreenShare check screenStreamRef
+  // (not the isScreenSharing state) so the browser's own "Stop
+  // sharing" button (screenTrack.onended) can't hit a stale closure.
+  function stopScreenShare() {
+    const pc = pcRef.current;
+    const sender = pc?.getSenders().find((s) => s.track?.kind === "video");
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    screenStreamRef.current = null;
+    const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (sender && cameraTrack) void sender.replaceTrack(cameraTrack);
+    if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+    setIsScreenSharing(false);
+  }
+
+  async function startScreenShare() {
+    const pc = pcRef.current;
+    const sender = pc?.getSenders().find((s) => s.track?.kind === "video");
+    if (!sender) return;
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStreamRef.current = screenStream;
+      const screenTrack = screenStream.getVideoTracks()[0];
+      await sender.replaceTrack(screenTrack);
+      if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+      setIsScreenSharing(true);
+      screenTrack.onended = () => stopScreenShare();
+    } catch {
+      // User cancelled the share picker — no-op.
+    }
+  }
+
+  function toggleScreenShare() {
+    if (screenStreamRef.current) {
+      stopScreenShare();
+    } else {
+      void startScreenShare();
+    }
+  }
+
   useEffect(() => {
     const pusher = getPusherClient();
     if (!pusher) return;
@@ -295,8 +349,28 @@ export function CallPanel({
       if (disconnectTimeoutRef.current) clearTimeout(disconnectTimeoutRef.current);
       pcRef.current?.close();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (callState !== "connected") return;
+
+    const startedAt = Date.now();
+    function tick() {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }
+    // First tick deferred (not called synchronously in the effect body)
+    // so the count starts at 0 immediately without tripping
+    // react-hooks/set-state-in-effect; subsequent ticks are already
+    // inside a setInterval callback either way.
+    const immediate = setTimeout(tick, 0);
+    const interval = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(immediate);
+      clearInterval(interval);
+    };
+  }, [callState]);
 
   if (!getPusherClient()) return null;
 
@@ -404,6 +478,10 @@ export function CallPanel({
                 </div>
               )}
 
+              <p className={`font-mono text-sm text-neutral-300 ${isVideo ? "fixed left-4 top-4 z-[60]" : ""}`}>
+                {formatDuration(elapsedSeconds)}
+              </p>
+
               <div className="flex gap-4">
                 <button
                   type="button"
@@ -415,6 +493,18 @@ export function CallPanel({
                 >
                   {muted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
                 </button>
+                {isVideo && (
+                  <button
+                    type="button"
+                    onClick={toggleScreenShare}
+                    title={isScreenSharing ? "Parar de compartilhar tela" : "Compartilhar tela"}
+                    className={`flex size-12 items-center justify-center rounded-full transition ${
+                      isScreenSharing ? "bg-white text-neutral-900" : "bg-white/10 hover:bg-white/20"
+                    }`}
+                  >
+                    {isScreenSharing ? <ScreenShareOff className="size-5" /> : <ScreenShare className="size-5" />}
+                  </button>
+                )}
                 {isVideo && (
                   <button
                     type="button"
