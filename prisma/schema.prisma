@@ -1,0 +1,156 @@
+// Prisma schema for Pactum — multi-tenant internal communication SaaS
+// for law firms. Each law firm is an Organization (tenant), reachable
+// on its own subdomain.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  // Subdomain slug, e.g. "meu-escritorio" -> meu-escritorio.pactum.app
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  channels    Channel[]
+
+  @@map("organizations")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships    Membership[]
+  accounts       Account[]
+  sessions       Session[]
+  messages       Message[]
+  channelMembers ChannelMember[]
+
+  @@map("users")
+}
+
+// Joins a User to an Organization with a role. A user can belong to
+// more than one law firm tenant (e.g. an external consultant).
+model Membership {
+  id             String         @id @default(cuid())
+  role           MembershipRole @default(MEMBER)
+  createdAt      DateTime       @default(now())
+  userId         String
+  organizationId String
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+// Slack-like channel scoped to a single tenant.
+model Channel {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  isPrivate      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  organizationId String
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ChannelMember[]
+  messages     Message[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("channels")
+}
+
+model ChannelMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  channelId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@index([channelId])
+  @@map("channel_members")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  userId    String
+  channelId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+  @@map("messages")
+}
+
+// --- Auth.js (NextAuth) models ---
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
