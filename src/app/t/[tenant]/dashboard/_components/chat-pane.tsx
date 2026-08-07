@@ -11,6 +11,7 @@ import {
   type ReadReceiptPayload,
 } from "@/lib/pusher-shared";
 import { sendMessage, markChannelRead } from "@/lib/actions/messages";
+import { useRealtimeStatus } from "@/lib/use-realtime-status";
 import { Avatar } from "@/components/avatar";
 import { CallPanel } from "./call-panel";
 
@@ -70,6 +71,7 @@ export function ChatPane({
   otherUser?: CallParticipant;
   initialOtherReadAt?: string | null;
 }) {
+  const realtimeError = useRealtimeStatus(channelId);
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -180,10 +182,15 @@ export function ChatPane({
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <header className="flex items-center justify-between border-b border-neutral-100 bg-white px-6 py-4">
-        <h1 className="font-semibold text-neutral-900">{title}</h1>
-        {currentUser && otherUser && (
-          <CallPanel channelId={channelId} currentUser={currentUser} otherUser={otherUser} />
+      <header className="border-b border-neutral-100 bg-white px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h1 className="font-semibold text-neutral-900">{title}</h1>
+          {currentUser && otherUser && (
+            <CallPanel channelId={channelId} currentUser={currentUser} otherUser={otherUser} />
+          )}
+        </div>
+        {realtimeError && (
+          <p className="mt-1 text-xs text-amber-600">⚠ {realtimeError}</p>
         )}
       </header>
 
