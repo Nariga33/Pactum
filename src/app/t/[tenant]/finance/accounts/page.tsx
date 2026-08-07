@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceAccess } from "@/lib/finance";
+import { Card } from "@/components/ui/card";
 import { AccountForm } from "./account-form";
 
 export const metadata: Metadata = { title: "Plano de contas — Pactum" };
@@ -33,29 +34,29 @@ export default async function AccountsPage({
       <div className="mt-8 grid max-w-2xl gap-6 sm:grid-cols-2">
         <div>
           <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">Receitas</h2>
-          <ul className="mt-2 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+          <Card className="mt-2 divide-y divide-neutral-100 p-0">
             {revenueAccounts.map((account) => (
-              <li key={account.id} className="px-4 py-2.5 text-sm text-neutral-800">
+              <div key={account.id} className="px-5 py-2.5 text-sm text-neutral-800">
                 {account.name}
-              </li>
+              </div>
             ))}
             {revenueAccounts.length === 0 && (
-              <li className="px-4 py-2.5 text-sm text-neutral-400">Nenhuma categoria ainda.</li>
+              <p className="px-5 py-2.5 text-sm text-neutral-400">Nenhuma categoria ainda.</p>
             )}
-          </ul>
+          </Card>
         </div>
         <div>
           <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">Despesas</h2>
-          <ul className="mt-2 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+          <Card className="mt-2 divide-y divide-neutral-100 p-0">
             {expenseAccounts.map((account) => (
-              <li key={account.id} className="px-4 py-2.5 text-sm text-neutral-800">
+              <div key={account.id} className="px-5 py-2.5 text-sm text-neutral-800">
                 {account.name}
-              </li>
+              </div>
             ))}
             {expenseAccounts.length === 0 && (
-              <li className="px-4 py-2.5 text-sm text-neutral-400">Nenhuma categoria ainda.</li>
+              <p className="px-5 py-2.5 text-sm text-neutral-400">Nenhuma categoria ainda.</p>
             )}
-          </ul>
+          </Card>
         </div>
       </div>
     </main>

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
 import { deleteFile } from "@/lib/actions/files";
+import { Card } from "@/components/ui/card";
 import { UploadForm } from "./upload-form";
 
 export const metadata: Metadata = { title: "Arquivos — Pactum" };
@@ -39,21 +41,26 @@ export default async function FilesPage({
         <UploadForm />
       </div>
 
-      <ul className="mt-8 max-w-2xl divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+      <Card className="mt-8 max-w-2xl divide-y divide-neutral-100 p-0">
         {files.map((file) => (
-          <li key={file.id} className="flex items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0">
-              <a
-                href={file.data}
-                download={file.name}
-                className="truncate text-sm font-medium text-neutral-900 hover:underline"
-              >
-                {file.name}
-              </a>
-              <p className="truncate text-xs text-neutral-500">
-                {formatSize(file.size)} · enviado por {file.uploadedBy.name} em{" "}
-                {file.createdAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
-              </p>
+          <div key={file.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                <FileText className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <a
+                  href={file.data}
+                  download={file.name}
+                  className="truncate text-sm font-medium text-neutral-900 hover:underline"
+                >
+                  {file.name}
+                </a>
+                <p className="truncate text-xs text-neutral-500">
+                  {formatSize(file.size)} · enviado por {file.uploadedBy.name} em{" "}
+                  {file.createdAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                </p>
+              </div>
             </div>
             {(canManage || file.uploadedById === session.user.id) && (
               <form action={deleteFile.bind(null, file.id)}>
@@ -65,12 +72,12 @@ export default async function FilesPage({
                 </button>
               </form>
             )}
-          </li>
+          </div>
         ))}
         {files.length === 0 && (
-          <li className="px-4 py-6 text-sm text-neutral-400">Nenhum arquivo ainda.</li>
+          <p className="px-5 py-6 text-sm text-neutral-400">Nenhum arquivo ainda.</p>
         )}
-      </ul>
+      </Card>
     </main>
   );
 }

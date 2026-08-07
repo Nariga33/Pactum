@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createFinancialEntry, type FinanceActionResult } from "@/lib/actions/finance";
+import { Card } from "@/components/ui/card";
 
 const initialState: FinanceActionResult = {};
 
@@ -13,7 +14,8 @@ export function EntryForm({
   const [state, formAction, pending] = useActionState(createFinancialEntry, initialState);
 
   return (
-    <form action={formAction} className="rounded-xl border border-neutral-200 p-5">
+    <Card>
+    <form action={formAction}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 flex flex-col gap-1">
           <label htmlFor="description" className="text-sm font-medium text-neutral-700">
@@ -23,7 +25,7 @@ export function EntryForm({
             id="description"
             name="description"
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
           />
         </div>
 
@@ -35,7 +37,7 @@ export function EntryForm({
             id="accountId"
             name="accountId"
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
           >
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
@@ -56,7 +58,7 @@ export function EntryForm({
             step="0.01"
             min="0.01"
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
           />
         </div>
 
@@ -70,7 +72,7 @@ export function EntryForm({
             type="date"
             required
             defaultValue={new Date().toISOString().slice(0, 10)}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
           />
         </div>
 
@@ -82,7 +84,7 @@ export function EntryForm({
             id="dueDate"
             name="dueDate"
             type="date"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
           />
         </div>
       </div>
@@ -92,10 +94,11 @@ export function EntryForm({
       <button
         type="submit"
         disabled={pending}
-        className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+        className="mt-4 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-60"
       >
         {pending ? "Lançando..." : "Lançar"}
       </button>
     </form>
+    </Card>
   );
 }

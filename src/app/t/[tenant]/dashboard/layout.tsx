@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Hash, Users, Folder, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
 import { Avatar } from "@/components/avatar";
@@ -43,16 +44,21 @@ export default async function DashboardLayout({
   const hasFinanceAccess = session.user.role === "OWNER" || currentMembership?.financeAccess === true;
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <aside className="flex w-64 shrink-0 flex-col bg-neutral-900 text-neutral-100">
-        <div className="px-4 py-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-400">Workspace</p>
-          <p className="font-semibold">{organization.name}</p>
+    <div className="flex min-h-screen bg-[var(--background)]">
+      <aside className="flex w-64 shrink-0 flex-col bg-[var(--color-sidebar)] text-neutral-100">
+        <div className="flex items-center gap-2 px-4 py-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold">
+            {organization.name.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-neutral-500">Workspace</p>
+            <p className="truncate text-sm font-semibold">{organization.name}</p>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-2 py-2">
           <div>
-            <p className="px-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            <p className="px-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
               Canais
             </p>
             <ul className="mt-1 space-y-0.5">
@@ -60,9 +66,10 @@ export default async function DashboardLayout({
                 <li key={channel.id}>
                   <Link
                     href={`/dashboard/c/${channel.id}`}
-                    className="block truncate rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+                    className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
                   >
-                    # {channel.name}
+                    <Hash className="size-3.5 shrink-0 text-neutral-500" />
+                    <span className="truncate">{channel.name}</span>
                   </Link>
                 </li>
               ))}
@@ -71,7 +78,7 @@ export default async function DashboardLayout({
           </div>
 
           <div>
-            <p className="px-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            <p className="px-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
               Mensagens diretas
             </p>
             <ul className="mt-1 space-y-0.5">
@@ -84,7 +91,7 @@ export default async function DashboardLayout({
                 <li key={user.id}>
                   <Link
                     href={`/dashboard/dm/${user.id}`}
-                    className="flex items-center gap-2 truncate rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+                    className="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
                   >
                     <Avatar name={user.name} image={user.image} size="sm" />
                     <span className="truncate">{user.name}</span>
@@ -95,35 +102,38 @@ export default async function DashboardLayout({
           </div>
         </nav>
 
-        <div className="space-y-0.5 border-t border-neutral-800 px-2 py-2">
+        <div className="space-y-0.5 border-t border-[var(--color-sidebar-border)] px-2 py-2">
           <Link
             href="/dashboard/directory"
-            className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
+            <Users className="size-4 text-neutral-500" />
             Diretório
           </Link>
           <Link
             href="/dashboard/files"
-            className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
+            <Folder className="size-4 text-neutral-500" />
             Arquivos
           </Link>
           {hasFinanceAccess && (
             <Link
               href="/finance"
-              className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
             >
+              <Wallet className="size-4 text-neutral-500" />
               Financeiro
             </Link>
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-3">
+        <div className="flex items-center justify-between border-t border-[var(--color-sidebar-border)] px-4 py-3">
           <Link href="/dashboard/profile" className="flex min-w-0 items-center gap-2 hover:opacity-80">
             <Avatar name={currentUser.name} image={currentUser.image} size="sm" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{currentUser.name}</p>
-              <p className="truncate text-xs text-neutral-400">{currentUser.email}</p>
+              <p className="truncate text-xs text-neutral-500">{currentUser.email}</p>
             </div>
           </Link>
           <SignOutButton />

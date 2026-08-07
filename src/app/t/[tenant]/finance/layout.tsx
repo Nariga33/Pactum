@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LayoutDashboard, Receipt, BookOpen, ArrowLeft } from "lucide-react";
 import { requireFinanceAccess } from "@/lib/finance";
 
 export default async function FinanceLayout({
@@ -12,40 +13,44 @@ export default async function FinanceLayout({
   await requireFinanceAccess(tenant);
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <aside className="flex w-56 shrink-0 flex-col bg-neutral-950 text-neutral-100">
+    <div className="flex min-h-screen bg-[var(--background)]">
+      <aside className="flex w-60 shrink-0 flex-col bg-[var(--color-sidebar)] text-neutral-100">
         <div className="px-4 py-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Modo focado</p>
+          <p className="text-[11px] uppercase tracking-wide text-neutral-500">Modo focado</p>
           <p className="font-semibold">Financeiro</p>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2">
           <Link
             href="/finance"
-            className="block rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
+            <LayoutDashboard className="size-4 text-neutral-500" />
             Visão geral (DRE)
           </Link>
           <Link
             href="/finance/entries"
-            className="block rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
+            <Receipt className="size-4 text-neutral-500" />
             Lançamentos
           </Link>
           <Link
             href="/finance/accounts"
-            className="block rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-[var(--color-sidebar-hover)]"
           >
+            <BookOpen className="size-4 text-neutral-500" />
             Plano de contas
           </Link>
         </nav>
 
-        <div className="border-t border-neutral-800 px-2 py-2">
+        <div className="border-t border-[var(--color-sidebar-border)] px-2 py-2">
           <Link
             href="/dashboard"
-            className="block rounded-md px-2 py-1.5 text-sm text-neutral-400 hover:bg-neutral-800"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-400 hover:bg-[var(--color-sidebar-hover)]"
           >
-            ← Voltar ao chat
+            <ArrowLeft className="size-4" />
+            Voltar ao chat
           </Link>
         </div>
       </aside>

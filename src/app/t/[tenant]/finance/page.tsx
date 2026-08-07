@@ -2,6 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceAccess } from "@/lib/finance";
+import { Card } from "@/components/ui/card";
+import { StatTile } from "@/components/ui/stat-tile";
+import { GradientBubble } from "@/components/ui/gradient-bubble";
 
 export const metadata: Metadata = { title: "Financeiro — Pactum" };
 
@@ -93,7 +96,6 @@ export default async function FinanceOverviewPage({
   const cashOut = cashEntries
     .filter((e) => e.account.type === "EXPENSE")
     .reduce((sum, e) => sum + Number(e.amount), 0);
-  const maxCashBar = Math.max(cashIn, cashOut, 1);
 
   const overdueTotal = overdueEntries.reduce((sum, e) => sum + Number(e.amount), 0);
 
@@ -107,13 +109,13 @@ export default async function FinanceOverviewPage({
         <div className="flex gap-2">
           <Link
             href={`?month=${monthParam(prev.year, prev.month)}`}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50"
           >
             ← Mês anterior
           </Link>
           <Link
             href={`?month=${monthParam(next.year, next.month)}`}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700 shadow-sm hover:bg-neutral-50"
           >
             Próximo mês →
           </Link>
@@ -121,85 +123,61 @@ export default async function FinanceOverviewPage({
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-neutral-200 p-5">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Receita</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-600">{currency(revenue)}</p>
-        </div>
-        <div className="rounded-xl border border-neutral-200 p-5">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Despesa</p>
-          <p className="mt-1 text-2xl font-semibold text-red-600">{currency(expense)}</p>
-        </div>
-        <div className="rounded-xl border border-neutral-200 p-5">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Resultado</p>
-          <p className={`mt-1 text-2xl font-semibold ${result >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-            {currency(result)}
-          </p>
-        </div>
+        <GradientBubble label="Receita" value={currency(revenue)} gradient="emerald" sublabel="Regime de competência" />
+        <GradientBubble label="Despesa" value={currency(expense)} gradient="rose" sublabel="Regime de competência" />
+        <GradientBubble
+          label="Resultado"
+          value={currency(result)}
+          gradient={result >= 0 ? "violet" : "dark"}
+          sublabel={result >= 0 ? "Superávit do mês" : "Déficit do mês"}
+        />
       </div>
 
-      <h2 className="mt-10 text-lg font-semibold text-neutral-900">Fluxo de caixa do mês</h2>
-      <p className="text-sm text-neutral-500">
-        O que efetivamente entrou/saiu do caixa (lançamentos marcados como pagos).
-      </p>
-      <div className="mt-4 max-w-md space-y-3">
-        <div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Entradas</span>
-            <span className="font-medium text-emerald-600">{currency(cashIn)}</span>
-          </div>
-          <div className="mt-1 h-2 rounded-full bg-neutral-100">
-            <div
-              className="h-2 rounded-full bg-emerald-500"
-              style={{ width: `${(cashIn / maxCashBar) * 100}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Saídas</span>
-            <span className="font-medium text-red-600">{currency(cashOut)}</span>
-          </div>
-          <div className="mt-1 h-2 rounded-full bg-neutral-100">
-            <div
-              className="h-2 rounded-full bg-red-500"
-              style={{ width: `${(cashOut / maxCashBar) * 100}%` }}
-            />
-          </div>
-        </div>
-        <p className="pt-2 text-sm font-medium text-neutral-900">
-          Saldo do período: {currency(cashIn - cashOut)}
-        </p>
-      </div>
-
-      <h2 className="mt-10 text-lg font-semibold text-neutral-900">Inadimplência</h2>
-      <p className="text-sm text-neutral-500">
-        Recebimentos vencidos e ainda não pagos, de todos os períodos.
-      </p>
-      {overdueEntries.length === 0 ? (
-        <p className="mt-3 text-sm text-neutral-400">Nenhum recebimento em atraso.</p>
-      ) : (
-        <>
-          <p className="mt-3 text-sm font-medium text-red-600">
-            Total em atraso: {currency(overdueTotal)}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <h2 className="text-base font-semibold text-neutral-900">Fluxo de caixa do mês</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            O que efetivamente entrou/saiu do caixa (lançamentos marcados como pagos).
           </p>
-          <ul className="mt-2 max-w-lg divide-y divide-neutral-200 rounded-xl border border-neutral-200">
-            {overdueEntries.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-neutral-900">{entry.description}</p>
-                  <p className="text-xs text-neutral-500">
-                    Venceu em {entry.dueDate?.toLocaleDateString("pt-BR", { timeZone: "UTC" })} ·{" "}
-                    {entry.account.name}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-red-600">
-                  {currency(Number(entry.amount))}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+          <div className="mt-5 space-y-3">
+            <StatTile label="Entradas" value={currency(cashIn)} tint="green" />
+            <StatTile label="Saídas" value={currency(cashOut)} tint="red" />
+            <StatTile label="Saldo do período" value={currency(cashIn - cashOut)} tint="purple" />
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-base font-semibold text-neutral-900">Inadimplência</h2>
+          <p className="mt-1 text-sm text-neutral-500">Recebimentos vencidos, de todos os períodos.</p>
+          <div className="mt-5 space-y-3">
+            <StatTile
+              label="Total em atraso"
+              value={currency(overdueTotal)}
+              tint="red"
+              valueClassName="text-red-700"
+            />
+            <StatTile label="Títulos em atraso" value={overdueEntries.length} tint="orange" />
+          </div>
+
+          {overdueEntries.length > 0 && (
+            <ul className="mt-4 divide-y divide-neutral-100 border-t border-neutral-100 pt-2">
+              {overdueEntries.slice(0, 6).map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-neutral-900">{entry.description}</p>
+                    <p className="text-xs text-neutral-500">
+                      Venceu em {entry.dueDate?.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-medium text-red-600">
+                    {currency(Number(entry.amount))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
     </main>
   );
 }

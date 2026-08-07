@@ -41,12 +41,15 @@ export function DirectoryGrid({ members }: { members: DirectoryMember[] }) {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Pesquisar pessoas..."
-        className="w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+        className="w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
       />
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((member) => (
-          <div key={member.membershipId} className="rounded-xl border border-neutral-200 p-5">
+          <div
+            key={member.membershipId}
+            className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm"
+          >
             <div className="flex items-start gap-3">
               <Avatar name={member.name} image={member.image} size="lg" />
               <div className="min-w-0 flex-1">

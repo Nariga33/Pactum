@@ -108,6 +108,65 @@ Em desenvolvimento, `NEXT_PUBLIC_ROOT_DOMAIN` está configurado para
 Ao criar um escritório em `/signup`, você é redirecionado
 automaticamente para a tela de login do subdomínio correspondente.
 
+## Deploy em produção (Vercel + Supabase)
+
+### 1. Banco de dados (Supabase)
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Em **Project Settings → Database → Connection string**, copie a
+   string no modo **Transaction** (porta `6543`, com `?pgbouncer=true`
+   já incluído) — é a que suporta as conexões efêmeras das funções
+   serverless da Vercel. A conexão direta (porta `5432`) não escala bem
+   nesse cenário e não deve ser usada como `DATABASE_URL` em produção.
+3. Essa string vira a variável `DATABASE_URL` no passo 3.
+
+### 2. Domínio com subdomínio curinga
+
+O multi-tenant depende de subdomínio por escritório
+(`escritorio.seudominio.com`), então:
+
+1. Registre/tenha um domínio (ex: `pactum.app`).
+2. Na Vercel, em **Project Settings → Domains**, adicione tanto
+   `pactum.app` quanto `*.pactum.app` (wildcard) apontando para o mesmo
+   projeto. A Vercel mostra os registros DNS (geralmente um `A`/`ALIAS`
+   para o domínio raiz e um `CNAME` para o `*`) — crie-os no seu
+   provedor de DNS.
+3. `NEXT_PUBLIC_ROOT_DOMAIN` (passo 3) deve ser exatamente esse domínio,
+   sem porta: `pactum.app`.
+
+### 3. Conectar o repositório na Vercel
+
+1. Em [vercel.com](https://vercel.com), **Add New → Project**, escolha
+   o repositório `Nariga33/Pactum` e a branch de deploy.
+2. A Vercel detecta Next.js automaticamente. O build já está configurado
+   para rodar as migrations sozinho: `package.json` tem um script
+   `vercel-build` (`prisma migrate deploy && next build`) que a Vercel
+   usa automaticamente no lugar do `build` padrão quando presente — não
+   precisa mexer no "Build Command" nas configurações do projeto.
+3. Em **Project Settings → Environment Variables**, configure (Production
+   e Preview):
+
+   | Variável | Valor |
+   | --- | --- |
+   | `DATABASE_URL` | connection string do Supabase, modo Transaction (passo 1) |
+   | `AUTH_SECRET` | gere uma nova com `npx auth secret` — **não reuse a de dev** |
+   | `NEXT_PUBLIC_ROOT_DOMAIN` | `pactum.app` (seu domínio, sem porta) |
+   | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_SECRET` / `PUSHER_CLUSTER` | opcional — de [dashboard.pusher.com](https://dashboard.pusher.com/) |
+   | `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` | mesmos valores acima, expostos ao navegador |
+
+   Não configure `AUTH_URL`/`NEXTAUTH_URL` — ver nota em `.env.example`.
+4. Deploy. Cada push subsequente na branch conectada builda e migra o
+   banco automaticamente.
+
+### Depois do primeiro deploy
+
+- Teste em `https://SEU_DOMINIO/signup` (domínio raiz) e confirme que o
+  redirecionamento cai em `https://escritorio-teste.SEU_DOMINIO/login`.
+- Fotos de perfil e arquivos anexados hoje são guardados como data URL
+  no próprio Postgres (ver notas acima) — funciona em produção, mas vale
+  migrar para um bucket de objetos (S3/Supabase Storage) antes de operar
+  com volume real de documentos.
+
 ## Estrutura relevante
 
 - `prisma/schema.prisma` — modelos de dados (tenant, usuários, canais,

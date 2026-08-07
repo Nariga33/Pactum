@@ -64,8 +64,8 @@ export function ChatPane({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="border-b border-neutral-200 px-6 py-4">
+    <div className="flex flex-1 flex-col bg-white">
+      <header className="border-b border-neutral-100 bg-white px-6 py-4">
         <h1 className="font-semibold text-neutral-900">{title}</h1>
       </header>
 
@@ -97,19 +97,19 @@ export function ChatPane({
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-neutral-200 px-6 py-4">
+      <form onSubmit={handleSubmit} className="border-t border-neutral-100 bg-white px-6 py-4">
         {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Escreva uma mensagem..."
-            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+            className="flex-1 rounded-full border border-neutral-300 px-4 py-2 text-sm outline-none focus:border-violet-500"
           />
           <button
             type="submit"
             disabled={pending || !draft.trim()}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50"
+            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-50"
           >
             Enviar
           </button>

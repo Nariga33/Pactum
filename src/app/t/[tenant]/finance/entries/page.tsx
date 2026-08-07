@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceAccess } from "@/lib/finance";
 import { markEntryPaid, deleteFinancialEntry } from "@/lib/actions/finance";
+import { Card } from "@/components/ui/card";
 import { EntryForm } from "./entry-form";
 
 export const metadata: Metadata = { title: "Lançamentos — Pactum" };
@@ -53,7 +54,7 @@ export default async function EntriesPage({
       )}
 
       <div className="mt-8 max-w-2xl">
-        <ul className="divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+        <Card className="divide-y divide-neutral-100 p-0">
           {entries.map((entry) => {
             const isOverdue =
               entry.account.type === "REVENUE" && !entry.paidAt && entry.dueDate && entry.dueDate < new Date();
@@ -68,7 +69,7 @@ export default async function EntriesPage({
             }
 
             return (
-              <li key={entry.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <div key={entry.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-neutral-900">{entry.description}</p>
                   <p className="truncate text-xs text-neutral-500">
@@ -96,13 +97,13 @@ export default async function EntriesPage({
                     </button>
                   </form>
                 </div>
-              </li>
+              </div>
             );
           })}
           {entries.length === 0 && (
-            <li className="px-4 py-6 text-sm text-neutral-400">Nenhum lançamento ainda.</li>
+            <p className="px-5 py-6 text-sm text-neutral-400">Nenhum lançamento ainda.</p>
           )}
-        </ul>
+        </Card>
       </div>
     </main>
   );

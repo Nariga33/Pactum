@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
 import { revokeInvitation } from "@/lib/actions/invitations";
+import { Card } from "@/components/ui/card";
 import { InviteForm } from "./invite-form";
 import { DirectoryGrid, type DirectoryMember } from "./directory-grid";
 
@@ -72,9 +73,9 @@ export default async function DirectoryPage({
           <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
             Convites pendentes
           </h2>
-          <ul className="mt-2 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
+          <Card className="mt-2 divide-y divide-neutral-100 p-0">
             {pendingInvites.map((invite) => (
-              <li key={invite.id} className="flex items-center justify-between px-4 py-3">
+              <div key={invite.id} className="flex items-center justify-between px-5 py-3">
                 <p className="text-sm text-neutral-700">{invite.email}</p>
                 <form action={revokeInvitation.bind(null, invite.id)}>
                   <button
@@ -84,9 +85,9 @@ export default async function DirectoryPage({
                     Cancelar convite
                   </button>
                 </form>
-              </li>
+              </div>
             ))}
-          </ul>
+          </Card>
         </div>
       )}
     </main>
