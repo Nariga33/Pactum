@@ -21,7 +21,13 @@ export default async function ChannelPage({
     notFound();
   }
 
-  const initialMessages = await getInitialMessages(channelId);
+  const [initialMessages, channelMembers] = await Promise.all([
+    getInitialMessages(channelId),
+    prisma.channelMember.findMany({
+      where: { channelId },
+      select: { user: { select: { id: true, name: true } } },
+    }),
+  ]);
 
   return (
     <ChatPane
@@ -30,6 +36,7 @@ export default async function ChannelPage({
       title={`# ${membership.channel.name}`}
       currentUserId={session.user.id}
       initialMessages={initialMessages}
+      members={channelMembers.map((m) => m.user)}
     />
   );
 }

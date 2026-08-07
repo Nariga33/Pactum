@@ -1,27 +1,67 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getPusherClient } from "@/lib/pusher-client";
 import { NEW_MESSAGE_EVENT, pusherChannelName, type PusherMessagePayload } from "@/lib/pusher-shared";
 import { sendMessage } from "@/lib/actions/messages";
 import { Avatar } from "@/components/avatar";
+
+type Member = { id: string; name: string };
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderWithMentions(content: string, members: Member[]): ReactNode {
+  const names = members.map((m) => m.name).filter(Boolean);
+  if (names.length === 0) return content;
+
+  const pattern = new RegExp(
+    `@(${names
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .map(escapeRegExp)
+      .join("|")})\\b`,
+    "g",
+  );
+
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(content)) !== null) {
+    if (match.index > lastIndex) parts.push(content.slice(lastIndex, match.index));
+    parts.push(
+      <span key={key++} className="font-medium text-violet-700">
+        @{match[1]}
+      </span>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) parts.push(content.slice(lastIndex));
+  return parts;
+}
 
 export function ChatPane({
   channelId,
   title,
   currentUserId,
   initialMessages,
+  members,
 }: {
   channelId: string;
   title: string;
   currentUserId: string;
   initialMessages: PusherMessagePayload[];
+  members: Member[];
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function appendMessage(message: PusherMessagePayload) {
     setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
@@ -44,6 +84,52 @@ export function ChatPane({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const mentionMatches =
+    mentionQuery === null
+      ? []
+      : members.filter((m) => m.name.toLowerCase().startsWith(mentionQuery.toLowerCase())).slice(0, 6);
+
+  function handleDraftChange(value: string, cursor: number | null) {
+    setDraft(value);
+
+    if (cursor === null) {
+      setMentionQuery(null);
+      return;
+    }
+    const uptoCursor = value.slice(0, cursor);
+    const at = uptoCursor.lastIndexOf("@");
+    if (at === -1) {
+      setMentionQuery(null);
+      return;
+    }
+    const candidate = uptoCursor.slice(at + 1);
+    if (/\s/.test(candidate)) {
+      setMentionQuery(null);
+      return;
+    }
+    setMentionQuery(candidate);
+  }
+
+  function selectMention(member: Member) {
+    const input = inputRef.current;
+    const cursor = input?.selectionStart ?? draft.length;
+    const uptoCursor = draft.slice(0, cursor);
+    const at = uptoCursor.lastIndexOf("@");
+    if (at === -1) return;
+
+    const before = draft.slice(0, at);
+    const after = draft.slice(cursor);
+    const nextDraft = `${before}@${member.name} ${after}`;
+    setDraft(nextDraft);
+    setMentionQuery(null);
+
+    requestAnimationFrame(() => {
+      const nextCursor = before.length + member.name.length + 2;
+      input?.focus();
+      input?.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const content = draft.trim();
@@ -60,6 +146,7 @@ export function ChatPane({
     }
 
     setDraft("");
+    setMentionQuery(null);
     appendMessage(result.message);
   }
 
@@ -69,41 +156,67 @@ export function ChatPane({
         <h1 className="font-semibold text-neutral-900">{title}</h1>
       </header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+      <div className="flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-6 py-4">
         {messages.length === 0 && (
           <p className="text-sm text-neutral-400">Nenhuma mensagem ainda. Diga oi 👋</p>
         )}
-        {messages.map((message) => (
-          <div key={message.id} className="flex gap-3">
-            <Avatar name={message.user.name} image={message.user.image} size="sm" />
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-neutral-900">
-                  {message.user.id === currentUserId ? "Você" : message.user.name}
-                </span>
-                <span className="text-xs text-neutral-400">
+        {messages.map((message) => {
+          const isOwn = message.user.id === currentUserId;
+          return (
+            <div key={message.id} className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+              {!isOwn && <Avatar name={message.user.name} image={message.user.image} size="sm" />}
+              <div
+                className={`max-w-[70%] rounded-2xl px-3.5 py-2 ${
+                  isOwn ? "bg-emerald-100 text-neutral-900" : "bg-white text-neutral-900 shadow-sm"
+                }`}
+              >
+                {!isOwn && (
+                  <p className="mb-0.5 text-xs font-medium text-violet-700">{message.user.name}</p>
+                )}
+                <p className="whitespace-pre-wrap break-words text-sm">
+                  {renderWithMentions(message.content, members)}
+                </p>
+                <p className="mt-0.5 text-right text-[10px] text-neutral-400">
                   {new Date(message.createdAt).toLocaleTimeString("pt-BR", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
-                </span>
+                </p>
               </div>
-              <p className="whitespace-pre-wrap break-words text-sm text-neutral-700">
-                {message.content}
-              </p>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-neutral-100 bg-white px-6 py-4">
+      <form onSubmit={handleSubmit} className="relative border-t border-neutral-100 bg-white px-6 py-4">
         {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+
+        {mentionQuery !== null && mentionMatches.length > 0 && (
+          <div className="absolute bottom-full left-6 mb-1 w-64 overflow-hidden rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+            {mentionMatches.map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => selectMention(member)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+              >
+                <Avatar name={member.name} size="sm" />
+                <span className="truncate">{member.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Escreva uma mensagem..."
+            onChange={(event) => handleDraftChange(event.target.value, event.target.selectionStart)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setMentionQuery(null);
+            }}
+            placeholder="Escreva uma mensagem... use @ para mencionar"
             className="flex-1 rounded-full border border-neutral-300 px-4 py-2 text-sm outline-none focus:border-violet-500"
           />
           <button

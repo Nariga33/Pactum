@@ -40,6 +40,7 @@ export default async function DirectMessagePage({
       title={otherMembership.user.name}
       currentUserId={session.user.id}
       initialMessages={initialMessages}
+      members={[otherMembership.user]}
     />
   );
 }
