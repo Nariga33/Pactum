@@ -15,6 +15,7 @@ export type DirectoryMember = {
   title: string | null;
   phone: string | null;
   role: MembershipRole;
+  financeAccess: boolean;
   isSelf: boolean;
   canEditRole: boolean;
   canRemove: boolean;
@@ -67,6 +68,7 @@ export function DirectoryGrid({ members }: { members: DirectoryMember[] }) {
               <MemberRowActions
                 membershipId={member.membershipId}
                 role={member.role}
+                financeAccess={member.financeAccess}
                 canEditRole={member.canEditRole}
                 canRemove={member.canRemove}
               />

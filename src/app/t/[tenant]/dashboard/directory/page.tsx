@@ -43,6 +43,7 @@ export default async function DirectoryPage({
     title: membership.user.title,
     phone: membership.user.phone,
     role: membership.role,
+    financeAccess: membership.financeAccess,
     isSelf: membership.user.id === session.user.id,
     canEditRole: session.user.role === "OWNER",
     canRemove:

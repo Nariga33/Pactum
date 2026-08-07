@@ -1,9 +1,10 @@
 # Pactum
 
-SaaS de comunicação interna nichado para escritórios de advocacia — cada
-escritório (tenant) tem um workspace com login dedicado em seu próprio
-subdomínio, no estilo do Slack, com espaço para arquivos e integração com
-serviços como Google Drive/SharePoint.
+Plataforma operacional e administrativa para escritórios de advocacia —
+cada escritório (tenant) tem um workspace com login dedicado em seu
+próprio subdomínio. Além da comunicação interna estilo Slack, inclui
+diretório de pessoas, arquivos e um módulo financeiro (DRE, fluxo de
+caixa, inadimplência) restrito a quem tem acesso ao financeiro.
 
 ## Status atual
 
@@ -13,11 +14,13 @@ serviços como Google Drive/SharePoint.
 - Login isolado por tenant (Auth.js/NextAuth, credenciais + bcrypt)
 - Proxy (`src/proxy.ts`) que resolve o tenant a partir do subdomínio da
   requisição
-- Chat estilo Slack: canais do escritório (criados automaticamente no
-  cadastro: `# geral`, `# societário`, `# contencioso`) e mensagens
-  diretas 1:1 entre membros do mesmo escritório, com mensagens em tempo
-  real via Pusher Channels (opcional — sem chaves configuradas, as
-  mensagens continuam persistindo e aparecem ao recarregar a página)
+- Chat estilo Slack: canais do escritório (3 criados automaticamente no
+  cadastro — `# geral`, `# societário`, `# contencioso` — e qualquer
+  membro pode criar novos, públicos ou privados, pelo botão "+ Criar
+  canal") e mensagens diretas 1:1 entre membros do mesmo escritório, com
+  mensagens em tempo real via Pusher Channels (opcional — sem chaves
+  configuradas, as mensagens continuam persistindo e aparecem ao
+  recarregar a página)
 - **Diretório** (`/dashboard/directory`): grade com foto, cargo,
   telefone e e-mail de cada pessoa do escritório, com busca. OWNER/ADMIN
   também veem ali o convite por e-mail (gera um link para compartilhar
@@ -28,11 +31,27 @@ serviços como Google Drive/SharePoint.
   telefone e foto (a foto é redimensionada no navegador e guardada como
   data URL no banco — funciona sem storage externo, mas deve ser trocado
   por um bucket de verdade, ex: S3/Supabase Storage, antes de produção).
+- **Arquivos** (`/dashboard/files`): upload/download/exclusão de
+  documentos do escritório (máx. 7MB por arquivo — mesmo esquema
+  "data URL no banco" do avatar, interino até haver storage de objetos
+  real).
+- **Financeiro** (`/finance`, "modo focado" — layout próprio, fora do
+  chat): plano de contas, lançamentos de receita/despesa (com
+  vencimento e status de pago), e uma visão geral com **DRE Gerencial**
+  (regime de competência), **Fluxo de Caixa** (regime de caixa, só
+  lançamentos pagos) e **Inadimplência** (recebimentos vencidos não
+  pagos) — tudo calculado ao vivo a partir dos lançamentos reais, sem
+  nenhum dado fictício. Acesso restrito: só quem tem `financeAccess`
+  concedido pelo OWNER (ou o próprio OWNER) entra em qualquer página
+  `/finance/*`; todo mundo mais é redirecionado de volta ao chat.
 
 Ainda não implementado: integração de arquivos com Google
 Drive/SharePoint, envio automático do e-mail de convite (SMTP/Resend
-etc. — hoje o link precisa ser copiado e enviado manualmente), e storage
-de objetos real para fotos de perfil/anexos.
+etc. — hoje o link precisa ser copiado e enviado manualmente), storage
+de objetos real para fotos de perfil/anexos, e as visões financeiras
+mais avançadas (orçado vs. realizado, ciclo financeiro, projeção,
+comparativo entre períodos) — fazem mais sentido com volume real de
+lançamentos ou uma integração contábil do que com dados de teste.
 
 ## Stack
 
@@ -120,3 +139,13 @@ automaticamente para a tela de login do subdomínio correspondente.
   convidado define nome/senha e entra no workspace
 - `src/components/avatar.tsx` — avatar com foto ou iniciais, reutilizado
   no chat, na barra lateral e no diretório
+- `src/app/t/[tenant]/dashboard/files` + `src/lib/actions/files.ts` —
+  upload/lista/exclusão de arquivos do escritório
+- `src/lib/finance.ts` — guarda de acesso ao financeiro (`requireFinanceAccess`
+  para páginas, `requireFinanceSession` para server actions)
+- `src/app/t/[tenant]/finance` — layout e páginas do modo financeiro
+  (visão geral/DRE, lançamentos, plano de contas), fora da árvore de
+  `/dashboard` de propósito, para ser um "modo focado" com shell
+  próprio em vez de mais um item dentro do chat
+- `src/lib/actions/finance.ts` — cria conta do plano de contas, lança
+  receita/despesa, marca como pago, exclui lançamento

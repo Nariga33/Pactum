@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
 import { Avatar } from "@/components/avatar";
 import { SignOutButton } from "./sign-out-button";
+import { CreateChannelForm } from "./_components/create-channel-form";
 
 export default async function DashboardLayout({
   children,
@@ -18,7 +19,7 @@ export default async function DashboardLayout({
   const organization = await prisma.organization.findUnique({ where: { slug: tenant } });
   if (!organization) notFound();
 
-  const [channelMemberships, teammates, currentUser] = await Promise.all([
+  const [channelMemberships, teammates, currentUser, currentMembership] = await Promise.all([
     prisma.channelMember.findMany({
       where: { userId: session.user.id, channel: { organizationId: organization.id, type: "CHANNEL" } },
       include: { channel: true },
@@ -33,7 +34,13 @@ export default async function DashboardLayout({
       where: { id: session.user.id },
       select: { name: true, email: true, image: true },
     }),
+    prisma.membership.findUnique({
+      where: { userId_organizationId: { userId: session.user.id, organizationId: organization.id } },
+      select: { financeAccess: true },
+    }),
   ]);
+
+  const hasFinanceAccess = session.user.role === "OWNER" || currentMembership?.financeAccess === true;
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -60,6 +67,7 @@ export default async function DashboardLayout({
                 </li>
               ))}
             </ul>
+            <CreateChannelForm />
           </div>
 
           <div>
@@ -87,13 +95,27 @@ export default async function DashboardLayout({
           </div>
         </nav>
 
-        <div className="border-t border-neutral-800 px-2 py-2">
+        <div className="space-y-0.5 border-t border-neutral-800 px-2 py-2">
           <Link
             href="/dashboard/directory"
             className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
           >
             Diretório
           </Link>
+          <Link
+            href="/dashboard/files"
+            className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+          >
+            Arquivos
+          </Link>
+          {hasFinanceAccess && (
+            <Link
+              href="/finance"
+              className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+            >
+              Financeiro
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-3">

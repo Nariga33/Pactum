@@ -37,6 +37,25 @@ export async function updateMemberRole(
   return {};
 }
 
+export async function toggleFinanceAccess(
+  membershipId: string,
+  financeAccess: boolean,
+): Promise<MemberActionResult> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "OWNER") {
+    return { error: "Só o OWNER pode conceder acesso ao financeiro." };
+  }
+
+  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!membership || membership.organizationId !== session.user.organizationId) {
+    return { error: "Membro não encontrado." };
+  }
+
+  await prisma.membership.update({ where: { id: membershipId }, data: { financeAccess } });
+  revalidatePath(`/t/${session.user.organizationSlug}/dashboard/directory`);
+  return {};
+}
+
 export async function removeMember(membershipId: string): Promise<MemberActionResult> {
   const session = await auth();
   if (!session?.user || !ADMIN_ROLES.has(session.user.role)) {
