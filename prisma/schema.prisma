@@ -17,6 +17,11 @@ enum MembershipRole {
   MEMBER
 }
 
+enum ChannelType {
+  CHANNEL
+  DIRECT
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -67,13 +72,16 @@ model Membership {
   @@map("memberships")
 }
 
-// Slack-like channel scoped to a single tenant.
+// Slack-like channel scoped to a single tenant. A DIRECT channel is a
+// 1:1 conversation between two members and has no name — the UI shows
+// the other participant's name instead.
 model Channel {
-  id             String   @id @default(cuid())
-  name           String
+  id             String      @id @default(cuid())
+  type           ChannelType @default(CHANNEL)
+  name           String?
   description    String?
-  isPrivate      Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  isPrivate      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
   organizationId String
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -81,7 +89,7 @@ model Channel {
   messages     Message[]
 
   @@unique([organizationId, name])
-  @@index([organizationId])
+  @@index([organizationId, type])
   @@map("channels")
 }
 

@@ -10,6 +10,8 @@ export type SignupState = {
   values?: { firmName: string; slug: string; name: string; email: string };
 };
 
+const DEFAULT_CHANNELS = ["geral", "societário", "contencioso"];
+
 export async function signupAction(
   _prevState: SignupState,
   formData: FormData,
@@ -74,6 +76,16 @@ export async function signupAction(
     await tx.membership.create({
       data: { userId: user.id, organizationId: organization.id, role: "OWNER" },
     });
+
+    for (const channelName of DEFAULT_CHANNELS) {
+      await tx.channel.create({
+        data: {
+          organizationId: organization.id,
+          name: channelName,
+          members: { create: { userId: user.id } },
+        },
+      });
+    }
   });
 
   redirect(tenantUrl(slug, "/login"));

@@ -7,24 +7,33 @@ serviços como Google Drive/SharePoint.
 
 ## Status atual
 
-Esta é a **fundação** do produto:
-
 - Cadastro de escritório (`Organization`) com subdomínio próprio
 - Usuários (`User`) e vínculo com escritório via `Membership` (papéis
   OWNER/ADMIN/MEMBER)
 - Login isolado por tenant (Auth.js/NextAuth, credenciais + bcrypt)
-- Middleware que resolve o tenant a partir do subdomínio da requisição
-- Dashboard autenticado (placeholder) com espaço reservado para canais,
-  mensagens e arquivos
+- Proxy (`src/proxy.ts`) que resolve o tenant a partir do subdomínio da
+  requisição
+- Chat estilo Slack: canais do escritório (criados automaticamente no
+  cadastro: `# geral`, `# societário`, `# contencioso`) e mensagens
+  diretas 1:1 entre membros do mesmo escritório, com mensagens em tempo
+  real via Pusher Channels (opcional — sem chaves configuradas, as
+  mensagens continuam persistindo e aparecem ao recarregar a página)
 
-Chat em tempo real e integração com Drive/SharePoint ainda não foram
-implementados — ficam para as próximas etapas.
+Ainda não implementado:
+
+- **Convite de novos membros para um escritório já existente.** Hoje
+  `/signup` sempre cria um novo escritório; não há como adicionar um
+  segundo usuário a um workspace já criado pela própria aplicação
+  (para isso, seria necessário inserir o registro diretamente no banco).
+  Esse fluxo de convite é o próximo passo natural.
+- Integração de arquivos com Google Drive/SharePoint.
 
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript + Tailwind CSS
 - [Prisma](https://www.prisma.io) + PostgreSQL
 - [Auth.js (NextAuth v5)](https://authjs.dev), provedor de credenciais
+- [Pusher Channels](https://pusher.com/channels/) para mensagens em tempo real
 
 ## Como rodar localmente
 
@@ -39,6 +48,12 @@ cp .env.example .env
 ```
 
 Gere um `AUTH_SECRET` com `npx auth secret` ou `openssl rand -base64 32`.
+
+Para mensagens em tempo real, crie um app gratuito em
+[dashboard.pusher.com](https://dashboard.pusher.com/) (produto
+"Channels") e preencha as variáveis `PUSHER_*`/`NEXT_PUBLIC_PUSHER_*` do
+`.env`. Sem isso, o chat funciona normalmente, só não empurra mensagens
+novas para quem já está com a página aberta (precisa recarregar).
 
 ### 2. Instalar dependências e aplicar o schema
 
@@ -72,11 +87,19 @@ automaticamente para a tela de login do subdomínio correspondente.
 
 - `prisma/schema.prisma` — modelos de dados (tenant, usuários, canais,
   mensagens, tabelas do Auth.js)
-- `src/middleware.ts` — resolve o subdomínio da requisição e roteia
-  para `src/app/t/[tenant]/...`
+- `src/proxy.ts` — resolve o subdomínio da requisição e roteia para
+  `src/app/t/[tenant]/...`
 - `src/lib/tenant.ts` — helpers de subdomínio (extração, validação,
   geração de URLs de tenant)
 - `src/auth.ts` — configuração do Auth.js (login por credenciais,
   escopado por tenant)
 - `src/app/signup` — cadastro de escritório + primeiro usuário (owner)
-- `src/app/t/[tenant]` — páginas do workspace (login, dashboard)
+- `src/app/t/[tenant]/login` — login do workspace
+- `src/app/t/[tenant]/dashboard` — layout (sidebar de canais/DMs),
+  `/c/[channelId]` (canal) e `/dm/[userId]` (mensagem direta)
+- `src/lib/actions/messages.ts` — envio de mensagem (valida
+  participação no canal antes de gravar)
+- `src/lib/channels.ts` — busca/criação da conversa 1:1 entre dois membros
+- `src/lib/pusher-server.ts` / `pusher-client.ts` / `pusher-shared.ts` —
+  publica e assina eventos de mensagem nova por canal privado do Pusher,
+  autorizado em `src/app/api/pusher/auth`
