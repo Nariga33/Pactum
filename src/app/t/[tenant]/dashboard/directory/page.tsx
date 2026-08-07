@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantSession } from "@/lib/session";
 import { revokeInvitation } from "@/lib/actions/invitations";
 import { InviteForm } from "./invite-form";
+import { DirectoryGrid, type DirectoryMember } from "./directory-grid";
 
-export const metadata: Metadata = { title: "Equipe — Pactum" };
+export const metadata: Metadata = { title: "Diretório — Pactum" };
 
 const ADMIN_ROLES = new Set(["OWNER", "ADMIN"]);
 
-export default async function TeamPage({
+export default async function DirectoryPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -20,8 +21,10 @@ export default async function TeamPage({
   const [memberships, pendingInvites] = await Promise.all([
     prisma.membership.findMany({
       where: { organizationId: session.user.organizationId },
-      include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { createdAt: "asc" },
+      include: {
+        user: { select: { id: true, name: true, email: true, image: true, title: true, phone: true } },
+      },
+      orderBy: { user: { name: "asc" } },
     }),
     isAdmin
       ? prisma.invitation.findMany({
@@ -31,12 +34,27 @@ export default async function TeamPage({
       : Promise.resolve([]),
   ]);
 
+  const members: DirectoryMember[] = memberships.map((membership) => ({
+    membershipId: membership.id,
+    userId: membership.user.id,
+    name: membership.user.name,
+    email: membership.user.email,
+    image: membership.user.image,
+    title: membership.user.title,
+    phone: membership.user.phone,
+    role: membership.role,
+    isSelf: membership.user.id === session.user.id,
+    canEditRole: session.user.role === "OWNER",
+    canRemove:
+      isAdmin &&
+      membership.user.id !== session.user.id &&
+      (session.user.role === "OWNER" || membership.role === "MEMBER"),
+  }));
+
   return (
     <main className="flex-1 overflow-y-auto px-8 py-10">
-      <h1 className="text-2xl font-semibold text-neutral-900">Equipe</h1>
-      <p className="mt-1 text-neutral-500">
-        Pessoas com acesso a este workspace.
-      </p>
+      <h1 className="text-2xl font-semibold text-neutral-900">Diretório</h1>
+      <p className="mt-1 text-neutral-500">Pessoas com acesso a este workspace.</p>
 
       {isAdmin && (
         <div className="mt-6 max-w-lg">
@@ -44,23 +62,8 @@ export default async function TeamPage({
         </div>
       )}
 
-      <div className="mt-8 max-w-lg">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
-          Membros
-        </h2>
-        <ul className="mt-2 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
-          {memberships.map((membership) => (
-            <li key={membership.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-neutral-900">{membership.user.name}</p>
-                <p className="text-xs text-neutral-500">{membership.user.email}</p>
-              </div>
-              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600">
-                {membership.role}
-              </span>
-            </li>
-          ))}
-        </ul>
+      <div className="mt-8">
+        <DirectoryGrid members={members} />
       </div>
 
       {isAdmin && pendingInvites.length > 0 && (

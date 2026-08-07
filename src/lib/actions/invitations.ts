@@ -64,7 +64,7 @@ export async function createInvitation(
     },
   });
 
-  revalidatePath(`/t/${session.user.organizationSlug}/dashboard/team`);
+  revalidatePath(`/t/${session.user.organizationSlug}/dashboard/directory`);
 
   return { inviteUrl: tenantUrl(session.user.organizationSlug, `/join/${token}`) };
 }
@@ -78,7 +78,7 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
     data: { status: "REVOKED" },
   });
 
-  revalidatePath(`/t/${session.user.organizationSlug}/dashboard/team`);
+  revalidatePath(`/t/${session.user.organizationSlug}/dashboard/directory`);
 }
 
 export type AcceptInvitationState = {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getPusherClient } from "@/lib/pusher-client";
 import { NEW_MESSAGE_EVENT, pusherChannelName, type PusherMessagePayload } from "@/lib/pusher-shared";
 import { sendMessage } from "@/lib/actions/messages";
+import { Avatar } from "@/components/avatar";
 
 export function ChatPane({
   channelId,
@@ -74,9 +75,7 @@ export function ChatPane({
         )}
         {messages.map((message) => (
           <div key={message.id} className="flex gap-3">
-            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-medium text-neutral-600">
-              {message.user.id === currentUserId ? "Você" : message.user.name.charAt(0)}
-            </div>
+            <Avatar name={message.user.name} image={message.user.image} size="sm" />
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
                 <span className="text-sm font-medium text-neutral-900">

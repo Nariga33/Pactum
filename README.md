@@ -18,16 +18,21 @@ serviços como Google Drive/SharePoint.
   diretas 1:1 entre membros do mesmo escritório, com mensagens em tempo
   real via Pusher Channels (opcional — sem chaves configuradas, as
   mensagens continuam persistindo e aparecem ao recarregar a página)
-- Convite de novos membros (página **Equipe** no dashboard, visível a
-  OWNER/ADMIN): gera um link de convite por e-mail — como ainda não há
-  envio de e-mail automático, o link é mostrado na tela para ser
-  compartilhado manualmente. Quem recebe o link define nome/senha em
-  `/join/[token]` e entra automaticamente já nos canais públicos do
-  escritório.
+- **Diretório** (`/dashboard/directory`): grade com foto, cargo,
+  telefone e e-mail de cada pessoa do escritório, com busca. OWNER/ADMIN
+  também veem ali o convite por e-mail (gera um link para compartilhar
+  manualmente — ainda não há envio automático), gestão de papel
+  (OWNER/ADMIN/MEMBER) e remoção de membros, sempre mantendo pelo menos
+  um OWNER.
+- **Perfil** (`/dashboard/profile`): cada pessoa edita seu nome, cargo,
+  telefone e foto (a foto é redimensionada no navegador e guardada como
+  data URL no banco — funciona sem storage externo, mas deve ser trocado
+  por um bucket de verdade, ex: S3/Supabase Storage, antes de produção).
 
 Ainda não implementado: integração de arquivos com Google
-Drive/SharePoint, e envio automático do e-mail de convite (SMTP/Resend
-etc. — hoje o link precisa ser copiado e enviado manualmente).
+Drive/SharePoint, envio automático do e-mail de convite (SMTP/Resend
+etc. — hoje o link precisa ser copiado e enviado manualmente), e storage
+de objetos real para fotos de perfil/anexos.
 
 ## Stack
 
@@ -104,7 +109,14 @@ automaticamente para a tela de login do subdomínio correspondente.
 - `src/lib/pusher-server.ts` / `pusher-client.ts` / `pusher-shared.ts` —
   publica e assina eventos de mensagem nova por canal privado do Pusher,
   autorizado em `src/app/api/pusher/auth`
-- `src/lib/actions/invitations.ts` + `src/app/t/[tenant]/dashboard/team`
-  — gera/revoga convites (OWNER/ADMIN)
+- `src/lib/actions/invitations.ts` — gera/revoga convites (OWNER/ADMIN)
+- `src/lib/actions/members.ts` — altera papel e remove membro
+  (com guarda de "sempre um OWNER")
+- `src/app/t/[tenant]/dashboard/directory` — grade de pessoas, convite
+  e gestão de papel/remoção
+- `src/app/t/[tenant]/dashboard/profile` — edição do próprio perfil
+  (nome, cargo, telefone, foto)
 - `src/app/t/[tenant]/join/[token]` — página pública onde quem foi
   convidado define nome/senha e entra no workspace
+- `src/components/avatar.tsx` — avatar com foto ou iniciais, reutilizado
+  no chat, na barra lateral e no diretório

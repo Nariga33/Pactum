@@ -49,7 +49,11 @@ model User {
   email         String    @unique
   passwordHash  String
   emailVerified DateTime?
+  // Data URL (small, resized client-side) until real object storage
+  // (S3/Supabase Storage/etc.) is wired up.
   image         String?
+  phone         String?
+  title         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
