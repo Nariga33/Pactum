@@ -81,6 +81,15 @@ export default async function DashboardLayout({
           </div>
         </nav>
 
+        <div className="border-t border-neutral-800 px-2 py-2">
+          <Link
+            href="/dashboard/team"
+            className="block rounded-md px-2 py-1 text-sm text-neutral-300 hover:bg-neutral-800"
+          >
+            Equipe
+          </Link>
+        </div>
+
         <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{session.user.name}</p>

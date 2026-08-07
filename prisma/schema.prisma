@@ -22,6 +22,12 @@ enum ChannelType {
   DIRECT
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -32,6 +38,7 @@ model Organization {
 
   memberships Membership[]
   channels    Channel[]
+  invitations Invitation[]
 
   @@map("organizations")
 }
@@ -46,11 +53,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  memberships    Membership[]
-  accounts       Account[]
-  sessions       Session[]
-  messages       Message[]
-  channelMembers ChannelMember[]
+  memberships     Membership[]
+  accounts        Account[]
+  sessions        Session[]
+  messages        Message[]
+  channelMembers  ChannelMember[]
+  sentInvitations Invitation[]
 
   @@map("users")
 }
@@ -119,6 +127,27 @@ model Message {
 
   @@index([channelId, createdAt])
   @@map("messages")
+}
+
+// An invite to join an existing Organization. Since there's no email
+// delivery wired up yet, the invite link (containing `token`) is shown
+// to the inviter to share manually.
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  role           MembershipRole   @default(MEMBER)
+  token          String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+  organizationId String
+  invitedById    String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("invitations")
 }
 
 // --- Auth.js (NextAuth) models ---

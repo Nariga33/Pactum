@@ -18,15 +18,16 @@ serviços como Google Drive/SharePoint.
   diretas 1:1 entre membros do mesmo escritório, com mensagens em tempo
   real via Pusher Channels (opcional — sem chaves configuradas, as
   mensagens continuam persistindo e aparecem ao recarregar a página)
+- Convite de novos membros (página **Equipe** no dashboard, visível a
+  OWNER/ADMIN): gera um link de convite por e-mail — como ainda não há
+  envio de e-mail automático, o link é mostrado na tela para ser
+  compartilhado manualmente. Quem recebe o link define nome/senha em
+  `/join/[token]` e entra automaticamente já nos canais públicos do
+  escritório.
 
-Ainda não implementado:
-
-- **Convite de novos membros para um escritório já existente.** Hoje
-  `/signup` sempre cria um novo escritório; não há como adicionar um
-  segundo usuário a um workspace já criado pela própria aplicação
-  (para isso, seria necessário inserir o registro diretamente no banco).
-  Esse fluxo de convite é o próximo passo natural.
-- Integração de arquivos com Google Drive/SharePoint.
+Ainda não implementado: integração de arquivos com Google
+Drive/SharePoint, e envio automático do e-mail de convite (SMTP/Resend
+etc. — hoje o link precisa ser copiado e enviado manualmente).
 
 ## Stack
 
@@ -103,3 +104,7 @@ automaticamente para a tela de login do subdomínio correspondente.
 - `src/lib/pusher-server.ts` / `pusher-client.ts` / `pusher-shared.ts` —
   publica e assina eventos de mensagem nova por canal privado do Pusher,
   autorizado em `src/app/api/pusher/auth`
+- `src/lib/actions/invitations.ts` + `src/app/t/[tenant]/dashboard/team`
+  — gera/revoga convites (OWNER/ADMIN)
+- `src/app/t/[tenant]/join/[token]` — página pública onde quem foi
+  convidado define nome/senha e entra no workspace
