@@ -138,11 +138,12 @@ O multi-tenant depende de subdomínio por escritório
 
 1. Em [vercel.com](https://vercel.com), **Add New → Project**, escolha
    o repositório `Nariga33/Pactum` e a branch de deploy.
-2. A Vercel detecta Next.js automaticamente. O build já está configurado
-   para rodar as migrations sozinho: `package.json` tem um script
-   `vercel-build` (`prisma migrate deploy && next build`) que a Vercel
-   usa automaticamente no lugar do `build` padrão quando presente — não
-   precisa mexer no "Build Command" nas configurações do projeto.
+2. A Vercel detecta Next.js automaticamente. O script `build` do
+   `package.json` já roda `prisma migrate deploy && next build`, então
+   toda migration pendente é aplicada antes do build — não precisa
+   mexer no "Build Command" nas configurações do projeto. Isso exige que
+   `DATABASE_URL` esteja disponível no momento do build (não só em
+   runtime) — o passo 3 abaixo cobre isso.
 3. Em **Project Settings → Environment Variables**, configure (Production
    e Preview):
 
