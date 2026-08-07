@@ -108,17 +108,31 @@ Em desenvolvimento, `NEXT_PUBLIC_ROOT_DOMAIN` está configurado para
 Ao criar um escritório em `/signup`, você é redirecionado
 automaticamente para a tela de login do subdomínio correspondente.
 
-## Deploy em produção (Vercel + Supabase)
+## Deploy em produção (Vercel + Neon)
 
-### 1. Banco de dados (Supabase)
+Qualquer Postgres gerenciado funciona (o Prisma aqui usa o driver `pg`
+padrão) — o guia abaixo usa [Neon](https://neon.tech) porque tem
+integração nativa com a Vercel.
 
-1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Em **Project Settings → Database → Connection string**, copie a
-   string no modo **Transaction** (porta `6543`, com `?pgbouncer=true`
-   já incluído) — é a que suporta as conexões efêmeras das funções
-   serverless da Vercel. A conexão direta (porta `5432`) não escala bem
-   nesse cenário e não deve ser usada como `DATABASE_URL` em produção.
-3. Essa string vira a variável `DATABASE_URL` no passo 3.
+### 1. Banco de dados (Neon)
+
+Caminho mais simples — direto pelo dashboard da Vercel, sem copiar
+connection string manualmente:
+
+1. No projeto na Vercel, aba **Storage → Create Database → Neon**
+   (ou **Integrations** se "Storage" não aparecer no seu plano).
+2. Ao criar, a Vercel já injeta `DATABASE_URL` (a string **pooled**,
+   com `-pooler` no hostname — a recomendada para funções serverless)
+   automaticamente nas env vars do projeto (Production e Preview). Não
+   precisa fazer mais nada neste passo.
+
+Alternativa manual (se preferir criar o banco direto em
+[neon.tech](https://neon.tech) e depois linkar): copie a **connection
+string com `-pooler`** no hostname (ex:
+`postgresql://user:pass@ep-xxx-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require`)
+em **Dashboard → Connection Details**, e cole manualmente como
+`DATABASE_URL` no passo 3. A conexão sem `-pooler` não escala bem com
+funções serverless.
 
 ### 2. Domínio com subdomínio curinga
 
@@ -131,8 +145,8 @@ O multi-tenant depende de subdomínio por escritório
    projeto. A Vercel mostra os registros DNS (geralmente um `A`/`ALIAS`
    para o domínio raiz e um `CNAME` para o `*`) — crie-os no seu
    provedor de DNS.
-3. `NEXT_PUBLIC_ROOT_DOMAIN` (passo 3) deve ser exatamente esse domínio,
-   sem porta: `pactum.app`.
+3. `NEXT_PUBLIC_ROOT_DOMAIN` (passo 3 abaixo) deve ser exatamente esse
+   domínio, sem porta: `pactum.app`.
 
 ### 3. Conectar o repositório na Vercel
 
@@ -143,13 +157,13 @@ O multi-tenant depende de subdomínio por escritório
    toda migration pendente é aplicada antes do build — não precisa
    mexer no "Build Command" nas configurações do projeto. Isso exige que
    `DATABASE_URL` esteja disponível no momento do build (não só em
-   runtime) — o passo 3 abaixo cobre isso.
-3. Em **Project Settings → Environment Variables**, configure (Production
-   e Preview):
+   runtime), o que a integração Neon do passo 1 já garante.
+3. Em **Project Settings → Environment Variables**, confirme/complete
+   (Production e Preview):
 
    | Variável | Valor |
    | --- | --- |
-   | `DATABASE_URL` | connection string do Supabase, modo Transaction (passo 1) |
+   | `DATABASE_URL` | já preenchida pela integração Neon (passo 1) — confirme que existe |
    | `AUTH_SECRET` | gere uma nova com `npx auth secret` — **não reuse a de dev** |
    | `NEXT_PUBLIC_ROOT_DOMAIN` | `pactum.app` (seu domínio, sem porta) |
    | `PUSHER_APP_ID` / `PUSHER_KEY` / `PUSHER_SECRET` / `PUSHER_CLUSTER` | opcional — de [dashboard.pusher.com](https://dashboard.pusher.com/) |
