@@ -19,7 +19,7 @@ export default async function DirectMessagePage({
 
   const otherMembership = await prisma.membership.findUnique({
     where: { userId_organizationId: { userId, organizationId: session.user.organizationId } },
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true, image: true } } },
   });
 
   if (!otherMembership) {
@@ -41,6 +41,12 @@ export default async function DirectMessagePage({
       currentUserId={session.user.id}
       initialMessages={initialMessages}
       members={[otherMembership.user]}
+      currentUser={{
+        id: session.user.id,
+        name: session.user.name ?? "Você",
+        image: session.user.image ?? null,
+      }}
+      otherUser={otherMembership.user}
     />
   );
 }

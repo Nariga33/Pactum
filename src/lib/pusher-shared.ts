@@ -4,6 +4,7 @@
 // import it safely.
 
 export const NEW_MESSAGE_EVENT = "new-message";
+export const CALL_SIGNAL_EVENT = "call-signal";
 
 export function pusherChannelName(channelId: string): string {
   return `private-channel-${channelId}`;
@@ -16,3 +17,13 @@ export type PusherMessagePayload = {
   channelId: string;
   user: { id: string; name: string; image: string | null };
 };
+
+// WebRTC signaling relayed through the same private per-channel Pusher
+// channel used for messages. 1:1 calls only (mesh doesn't scale past
+// two peers) — `from` lets each client ignore its own echoed signal.
+export type CallSignal =
+  | { kind: "offer"; callId: string; from: { id: string; name: string; image: string | null }; video: boolean; sdp: string }
+  | { kind: "answer"; callId: string; from: { id: string; name: string; image: string | null }; sdp: string }
+  | { kind: "ice-candidate"; callId: string; from: { id: string; name: string; image: string | null }; candidate: string }
+  | { kind: "hangup"; callId: string; from: { id: string; name: string; image: string | null } }
+  | { kind: "decline"; callId: string; from: { id: string; name: string; image: string | null } };

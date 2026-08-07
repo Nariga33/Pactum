@@ -1,5 +1,11 @@
 import PusherServer from "pusher";
-import { NEW_MESSAGE_EVENT, pusherChannelName, type PusherMessagePayload } from "@/lib/pusher-shared";
+import {
+  NEW_MESSAGE_EVENT,
+  CALL_SIGNAL_EVENT,
+  pusherChannelName,
+  type PusherMessagePayload,
+  type CallSignal,
+} from "@/lib/pusher-shared";
 
 const { PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER } = process.env;
 
@@ -20,4 +26,9 @@ export const pusherServer =
 export async function publishNewMessage(payload: PusherMessagePayload): Promise<void> {
   if (!pusherServer) return;
   await pusherServer.trigger(pusherChannelName(payload.channelId), NEW_MESSAGE_EVENT, payload);
+}
+
+export async function publishCallSignal(channelId: string, signal: CallSignal): Promise<void> {
+  if (!pusherServer) return;
+  await pusherServer.trigger(pusherChannelName(channelId), CALL_SIGNAL_EVENT, signal);
 }

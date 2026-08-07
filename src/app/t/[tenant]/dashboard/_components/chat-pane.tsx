@@ -5,8 +5,10 @@ import { getPusherClient } from "@/lib/pusher-client";
 import { NEW_MESSAGE_EVENT, pusherChannelName, type PusherMessagePayload } from "@/lib/pusher-shared";
 import { sendMessage } from "@/lib/actions/messages";
 import { Avatar } from "@/components/avatar";
+import { CallPanel } from "./call-panel";
 
 type Member = { id: string; name: string };
+type CallParticipant = { id: string; name: string; image: string | null };
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -48,12 +50,16 @@ export function ChatPane({
   currentUserId,
   initialMessages,
   members,
+  currentUser,
+  otherUser,
 }: {
   channelId: string;
   title: string;
   currentUserId: string;
   initialMessages: PusherMessagePayload[];
   members: Member[];
+  currentUser?: CallParticipant;
+  otherUser?: CallParticipant;
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
@@ -152,8 +158,11 @@ export function ChatPane({
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <header className="border-b border-neutral-100 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-neutral-100 bg-white px-6 py-4">
         <h1 className="font-semibold text-neutral-900">{title}</h1>
+        {currentUser && otherUser && (
+          <CallPanel channelId={channelId} currentUser={currentUser} otherUser={otherUser} />
+        )}
       </header>
 
       <div className="flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-6 py-4">
