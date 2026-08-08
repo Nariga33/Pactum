@@ -46,6 +46,7 @@ export function CallPanel({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   const callIdRef = useRef<string | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -121,6 +122,7 @@ export function CallPanel({
     setMuted(false);
     setCameraOff(false);
     setIsScreenSharing(false);
+    setAudioBlocked(false);
     setCallState("idle");
   }
 
@@ -156,7 +158,18 @@ export function CallPanel({
       }
     };
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
+      const remoteEl = remoteVideoRef.current;
+      if (!remoteEl) return;
+      remoteEl.srcObject = event.streams[0];
+      // The `autoPlay` attribute is unreliable once srcObject is assigned
+      // asynchronously well after the element mounted — which is exactly
+      // this case, since the remote track only arrives when ICE finishes,
+      // not at render time. Some browsers then never start playback on
+      // their own: the call reaches "connected", the timer runs, but
+      // nothing is heard or seen. Play explicitly, and if the browser's
+      // autoplay policy still blocks it, surface a one-tap recovery
+      // instead of leaving the call silently stuck.
+      remoteEl.play().catch(() => setAudioBlocked(true));
     };
     pc.onconnectionstatechange = () => {
       // "disconnected" also fires on brief network blips that recover on
@@ -531,6 +544,21 @@ export function CallPanel({
               <p className={`font-mono text-sm text-neutral-300 ${isVideo ? "fixed left-4 top-4 z-[60]" : ""}`}>
                 {formatDuration(elapsedSeconds)}
               </p>
+
+              {audioBlocked && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    remoteVideoRef.current
+                      ?.play()
+                      .then(() => setAudioBlocked(false))
+                      .catch(() => {});
+                  }}
+                  className="rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-amber-400"
+                >
+                  Toque para ativar o áudio
+                </button>
+              )}
 
               <div className="flex gap-4">
                 <button
