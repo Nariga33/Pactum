@@ -12,6 +12,7 @@ import {
 } from "@/lib/pusher-shared";
 import { sendMessage, markChannelRead } from "@/lib/actions/messages";
 import { useRealtimeStatus } from "@/lib/use-realtime-status";
+import { isStaleDeploymentError } from "@/lib/action-error";
 import { playMessageChime, requestNotificationPermission, showMessageNotification } from "@/lib/browser-notify";
 import { Avatar } from "@/components/avatar";
 import { CallPanel } from "./call-panel";
@@ -123,7 +124,10 @@ export function ChatPane({
   }, [messages]);
 
   useEffect(() => {
-    void markChannelRead(channelId);
+    // Best-effort — a failure here (e.g. a stale server action after a
+    // redeploy) shouldn't surface to the user or crash the tab; the send
+    // path below is what actually catches and recovers from that case.
+    markChannelRead(channelId).catch(() => {});
   }, [channelId, messages.length]);
 
   const mentionMatches =
@@ -183,17 +187,31 @@ export function ChatPane({
 
     setPending(true);
     setError(null);
-    const result = await sendMessage(channelId, content);
-    setPending(false);
-
-    if ("error" in result) {
-      setError(result.error);
-      return;
+    try {
+      const result = await sendMessage(channelId, content);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setDraft("");
+      setMentionQuery(null);
+      appendMessage(result.message);
+    } catch (err) {
+      // Previously uncaught: an error here (most commonly a stale
+      // server-action reference from a tab left open across a deploy)
+      // skipped setPending(false) entirely, leaving the compose box
+      // permanently disabled until the user manually refreshed. Now we
+      // catch it, and if it's specifically the stale-deployment case we
+      // recover automatically instead of making the user figure it out.
+      if (isStaleDeploymentError(err)) {
+        setError("Uma nova versão do Pactum foi publicada — atualizando a página...");
+        window.location.reload();
+        return;
+      }
+      setError("Não foi possível enviar a mensagem. Verifique sua conexão e tente novamente.");
+    } finally {
+      setPending(false);
     }
-
-    setDraft("");
-    setMentionQuery(null);
-    appendMessage(result.message);
   }
 
   return (

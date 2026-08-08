@@ -6,6 +6,7 @@ import { getPusherClient } from "@/lib/pusher-client";
 import { CALL_SIGNAL_EVENT, pusherChannelName, type CallSignal } from "@/lib/pusher-shared";
 import { sendCallSignal } from "@/lib/actions/calls";
 import { requestNotificationPermission, showCallNotification } from "@/lib/browser-notify";
+import { isStaleDeploymentError } from "@/lib/action-error";
 import { Avatar } from "@/components/avatar";
 
 type Person = { id: string; name: string; image: string | null };
@@ -15,6 +16,13 @@ type CallState = "idle" | "outgoing" | "incoming" | "connected";
 // networks but can fail to connect across some restrictive corporate
 // NATs. A TURN relay would need a paid/self-hosted service.
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+
+// Backstop for "outgoing"/"incoming" never resolving — covers every
+// cause at once (the other side's tab is gone, their signal never
+// arrived, an offer/answer send silently failed), not just one of them.
+// Without this, any of those leaves the screen stuck on "Chamando..."
+// forever with no way out except reloading the tab.
+const RING_TIMEOUT_MS = 45_000;
 
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -117,7 +125,22 @@ export function CallPanel({
   }
 
   function send(signal: CallSignal) {
-    void sendCallSignal(channelId, signal);
+    // Previously fire-and-forget with no failure path at all: if this
+    // rejected (most commonly a stale server-action reference from a tab
+    // left open across a deploy), the offer/answer/ice-candidate just
+    // vanished silently and the call sat on "Chamando..." forever with
+    // no signal ever reaching the other side. Now a stale-deployment
+    // failure recovers itself; anything else is at least logged, and the
+    // RING_TIMEOUT_MS backstop below still ends the call instead of
+    // hanging indefinitely no matter what caused the send to fail.
+    sendCallSignal(channelId, signal)
+      .then((result) => {
+        if (result?.error) console.error("Call signal rejected:", result.error);
+      })
+      .catch((err) => {
+        console.error("Call signal failed to send:", err);
+        if (isStaleDeploymentError(err)) window.location.reload();
+      });
   }
 
   function createPeerConnection(callId: string): RTCPeerConnection {
@@ -363,6 +386,22 @@ export function CallPanel({
       screenStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (callState !== "outgoing" && callState !== "incoming") return;
+
+    const timeout = setTimeout(() => {
+      const callId = callIdRef.current;
+      if (callId) {
+        send({ kind: callState === "outgoing" ? "hangup" : "decline", callId, from: currentUser });
+      }
+      setError(callState === "outgoing" ? "Não foi possível conectar. A pessoa não atendeu." : "Chamada perdida.");
+      cleanup();
+    }, RING_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup/send intentionally close over refs/currentUser, not state
+  }, [callState]);
 
   useEffect(() => {
     if (callState !== "connected") return;
